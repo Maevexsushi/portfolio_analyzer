@@ -33,17 +33,19 @@ export function UrlForm({
   const [pending, setPending] = useState(false);
   const [stage, setStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** A better URL the server worked out — offered as a one-click retry. */
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => {
     if (timer.current) clearInterval(timer.current);
   }, []);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
+  async function run(target: string) {
     if (pending) return;
 
     setError(null);
+    setSuggestion(null);
     setPending(true);
     setStage(0);
 
@@ -55,14 +57,17 @@ export function UrlForm({
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url, checkLinks }),
+        body: JSON.stringify({ url: target, checkLinks }),
       });
-      const data = (await response.json()) as
-        | { result: { id: string } }
-        | { error: string };
+      const data = (await response.json()) as {
+        result?: { id: string };
+        error?: string;
+        suggestion?: string | null;
+      };
 
-      if (!response.ok || "error" in data) {
-        setError("error" in data ? data.error : "That page could not be analyzed.");
+      if (!response.ok || !data.result) {
+        setError(data.error ?? "That page could not be analyzed.");
+        setSuggestion(data.suggestion ?? null);
         return;
       }
       router.push(`/r/${data.result.id}`);
@@ -72,6 +77,16 @@ export function UrlForm({
       if (timer.current) clearInterval(timer.current);
       setPending(false);
     }
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    void run(url);
+  }
+
+  function useSuggestion(target: string) {
+    setUrl(target);
+    void run(target);
   }
 
   return (
@@ -123,13 +138,23 @@ export function UrlForm({
       </div>
 
       {error && (
-        <p
+        <div
           id="url-error"
           role="alert"
           className="mt-3 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm text-ink"
         >
-          {error}
-        </p>
+          <p>{error}</p>
+          {suggestion && (
+            <button
+              type="button"
+              onClick={() => useSuggestion(suggestion)}
+              disabled={pending}
+              className="mt-2.5 rounded-lg bg-brand px-3 py-1.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              Analyze {suggestion} instead
+            </button>
+          )}
+        </div>
       )}
     </form>
   );

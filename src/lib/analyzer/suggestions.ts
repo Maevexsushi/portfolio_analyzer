@@ -25,6 +25,12 @@ interface Rule {
   /** Estimated overall points recovered by fixing this outright. */
   impact: number;
   title: string;
+  /**
+   * Title used when the check only warned. For "does it exist and is it the right
+   * length" checks, a warn means the thing exists and needs adjusting — telling
+   * someone to "add" what they already have reads as a broken tool.
+   */
+  warnTitle?: string;
   action: string;
 }
 
@@ -224,6 +230,7 @@ const RULES: Record<string, Rule> = {
     severity: "important",
     impact: 3,
     title: "Write a proper page title",
+    warnTitle: "Adjust the page title length",
     action: "Use a title like \"Jane Doe — Frontend Developer\", between 15 and 70 characters.",
   },
   "design-description": {
@@ -231,8 +238,9 @@ const RULES: Record<string, Rule> = {
     severity: "important",
     impact: 3,
     title: "Add a meta description",
+    warnTitle: "Adjust the meta description length",
     action:
-      "Write a 50-160 character summary of who you are and what you build; it becomes your search-result snippet.",
+      "Aim for 50-160 characters. Search engines cut the snippet off around 160, so put who you are and what you build first.",
   },
   "design-social-preview": {
     category: "design",
@@ -495,7 +503,7 @@ export function generateSuggestions(reports: Reports): Suggestion[] {
       // A warning is a smaller problem than a failure, so soften critical warnings.
       severity:
         check.status === "warn" && rule.severity === "critical" ? "important" : rule.severity,
-      title: rule.title,
+      title: check.status === "warn" ? (rule.warnTitle ?? rule.title) : rule.title,
       detail: `${check.detail} ${rule.action}`,
       impact: check.status === "fail" ? rule.impact : Math.max(1, Math.round(rule.impact / 2)),
     });

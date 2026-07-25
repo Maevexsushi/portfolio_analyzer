@@ -28,11 +28,14 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 
 export class FetchError extends Error {
   readonly code: string;
+  /** A better URL to try, when we can work one out. Offered to the user as a one-click retry. */
+  readonly suggestion: string | null;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, suggestion: string | null = null) {
     super(message);
     this.name = "FetchError";
     this.code = code;
+    this.suggestion = suggestion;
   }
 }
 
@@ -70,7 +73,95 @@ export function normalizeUrl(input: string): URL {
   }
 
   url.hash = "";
+  // A pasted clone URL ("…/portfolio.git") should resolve to the page, not 404.
+  if (url.pathname.endsWith(".git")) url.pathname = url.pathname.slice(0, -4);
   return url;
+}
+
+/**
+ * Code-hosting pages that are not the portfolio.
+ *
+ * Analyzing github.com/owner/repo scores GitHub's own UI: it looks like a real report
+ * — a decent score, "Branches" listed as a project — while saying nothing about the
+ * portfolio, and no edit the author makes to their site will ever change it. Failing
+ * loudly with the deployed URL is far more useful than a plausible wrong answer.
+ */
+const CODE_HOSTS = /^(www\.)?(github\.com|gitlab\.com|bitbucket\.org|codeberg\.org|sourceforge\.net)$/i;
+
+interface CodeHostUrl {
+  owner: string;
+  repo: string | null;
+  /** GitHub Pages URL for this repo, when the host is GitHub. Existence is not implied. */
+  pagesCandidate: string | null;
+}
+
+export function parseCodeHostUrl(url: URL): CodeHostUrl | null {
+  if (!CODE_HOSTS.test(url.hostname)) return null;
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return null;
+
+  // Reserved paths (github.com/features, /pricing) are not owner pages.
+  const reserved = new Set([
+    "features",
+    "pricing",
+    "about",
+    "explore",
+    "topics",
+    "trending",
+    "marketplace",
+    "sponsors",
+    "settings",
+    "notifications",
+    "login",
+    "join",
+    "search",
+    "orgs",
+    "apps",
+    "enterprise",
+    "security",
+    "collections",
+    "events",
+    "users",
+  ]);
+  const [owner, repo] = segments;
+  if (reserved.has(owner.toLowerCase())) return null;
+
+  const isGitHub = /(^|\.)github\.com$/i.test(url.hostname);
+  return {
+    owner,
+    repo: repo ?? null,
+    pagesCandidate:
+      isGitHub && repo ? `https://${owner.toLowerCase()}.github.io/${repo}/` : null,
+  };
+}
+
+/** Throws when the URL is a repository or profile page rather than a live site. */
+async function assertNotCodeHost(url: URL): Promise<void> {
+  const parsed = parseCodeHostUrl(url);
+  if (!parsed) return;
+
+  const what = parsed.repo
+    ? `a ${url.hostname} repository page`
+    : `a ${url.hostname} profile page`;
+
+  // Only offer the Pages URL if it actually responds — a dead suggestion is worse
+  // than none, and plenty of repos deploy to Vercel or Netlify instead.
+  let suggestion: string | null = null;
+  if (parsed.pagesCandidate) {
+    const probe = await probeLink(parsed.pagesCandidate, 6000);
+    if (probe.ok && probe.status !== null && probe.status < 400) {
+      suggestion = parsed.pagesCandidate;
+    }
+  }
+
+  throw new FetchError(
+    "code-host",
+    `That link is ${what}, not your published portfolio — analyzing it would score ${url.hostname}'s own page, and nothing you change on your site would show up. Use the URL your portfolio is deployed at (your Vercel, Netlify, or GitHub Pages address).${
+      suggestion ? "" : parsed.repo ? " Tip: the repository's About panel usually lists it." : ""
+    }`,
+    suggestion,
+  );
 }
 
 function isPrivateIPv4(ip: string): boolean {
@@ -194,6 +285,8 @@ export async function fetchPage(
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<FetchedPage> {
   let url = normalizeUrl(rawUrl);
+  await assertNotCodeHost(url);
+
   const redirectChain: string[] = [];
   const startedAt = Date.now();
 

@@ -142,6 +142,9 @@ export interface EssentialLink {
   label: string;
   found: boolean;
   url: string | null;
+  /** `warn` covers partial credit — e.g. an email printed as text but never linked. */
+  status: CheckStatus;
+  note: string | null;
 }
 
 export interface LinksReport {

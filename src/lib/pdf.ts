@@ -673,8 +673,8 @@ export async function buildReportPdf(result: AnalysisResult): Promise<Uint8Array
     report.checkRow({
       id: essential.id,
       label: essential.label,
-      status: essential.found ? "pass" : "fail",
-      detail: essential.url ?? "Not found.",
+      status: essential.status,
+      detail: essential.note ?? essential.url ?? "Not found.",
     });
   }
   for (const check of result.links.checks) report.checkRow(check);

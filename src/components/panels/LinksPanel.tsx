@@ -34,11 +34,12 @@ export function LinksPanel({ report }: { report: LinksReport }) {
             key={essential.id}
             className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-2/50 p-3"
           >
-            <StatusBadge status={essential.found ? "pass" : "fail"} />
+            <StatusBadge status={essential.status} />
             <div className="min-w-0">
               <p className="font-medium">{essential.label}</p>
-              <p className="mt-0.5 text-sm break-all text-muted">
-                {essential.url ? shortenUrl(essential.url, 40) : "Not found"}
+              <p className="mt-0.5 text-sm break-words text-muted">
+                {essential.note ??
+                  (essential.url ? shortenUrl(essential.url, 40) : "Not found")}
               </p>
             </div>
           </li>

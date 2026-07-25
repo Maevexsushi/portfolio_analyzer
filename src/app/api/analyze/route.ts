@@ -13,6 +13,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   scheme: 400,
   blocked: 400,
   dns: 400,
+  "code-host": 400,
   "content-type": 415,
   forbidden: 502,
   http: 502,
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof FetchError) {
       return NextResponse.json(
-        { error: error.message, code: error.code },
+        { error: error.message, code: error.code, suggestion: error.suggestion },
         { status: STATUS_BY_CODE[error.code] ?? 502 },
       );
     }

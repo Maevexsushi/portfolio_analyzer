@@ -187,6 +187,111 @@ function extractFonts(ctx: PageContext): string[] {
   );
 }
 
+/**
+ * Dark-mode detection.
+ *
+ * There are three common architectures and only one of them shows up as
+ * `prefers-color-scheme` in the CSS:
+ *
+ *  - media-query themes — `@media (prefers-color-scheme: dark)`
+ *  - class themes — a single `.dark { --token: … }` block toggled on <html> at runtime
+ *    (Tailwind's dark variant, next-themes, shadcn/ui). Nothing in the served CSS
+ *    mentions the media query, and the class is only applied once JS runs.
+ *  - attribute themes — `[data-theme="dark"]`, same idea with an attribute.
+ *
+ * Checking for the media query alone reported sites with a working theme toggle as
+ * having no dark mode, so all three count, as does a visible toggle control.
+ */
+function detectDarkMode(ctx: PageContext): { supported: boolean; detail: string } {
+  const { $, css } = ctx;
+
+  if (/prefers-color-scheme/i.test(css)) {
+    return {
+      supported: true,
+      detail: "Honours prefers-color-scheme, so the page follows the visitor's system theme.",
+    };
+  }
+
+  /*
+   * Attribute themes are not standardised: data-theme, data-color-mode,
+   * data-color-scheme, data-appearance and data-mode are all in the wild. Match the
+   * shape of the name rather than one spelling, and accept a root attribute whose
+   * value is a theme name even if we don't recognise the attribute.
+   */
+  const THEME_ATTR_NAME = /^data-[\w-]*(theme|colou?r-?mode|colou?r-?scheme|appearance|mode)$/i;
+  const THEME_ATTR_VALUE = /^(dark|light|system|auto)$/i;
+
+  const rootAttributes = {
+    ...($("html").attr() ?? {}),
+    ...($("body").attr() ?? {}),
+  } as Record<string, string>;
+
+  const themeAttr = Object.entries(rootAttributes).find(
+    ([name, value]) =>
+      THEME_ATTR_NAME.test(name) ||
+      (name.startsWith("data-") && THEME_ATTR_VALUE.test((value ?? "").trim())),
+  );
+
+  if (themeAttr) {
+    return {
+      supported: true,
+      detail: `Themed through the ${themeAttr[0]}="${themeAttr[1]}" attribute, switched at runtime.`,
+    };
+  }
+
+  if (/\[data-[\w-]*(theme|colou?r-?mode|colou?r-?scheme|appearance|mode)[^\]]*\]/i.test(css)) {
+    return {
+      supported: true,
+      detail: "Themed through a data attribute on the document, switched at runtime.",
+    };
+  }
+
+  // Matches `.dark{`, minified `}.dark{`, `html.dark`, `:where(.dark,.dark *)`, and
+  // Tailwind's escaped variant utilities `.dark\:bg-black`. The lookahead is what keeps
+  // `.darkred` and `.dark-blue` from counting.
+  if (/\.dark(?![\w-])/i.test(css)) {
+    return {
+      supported: true,
+      detail:
+        "Themed through a .dark class toggled at runtime (the Tailwind/next-themes pattern).",
+    };
+  }
+
+  const toggle = $(
+    "[aria-label*='theme' i], [aria-label*='dark mode' i], [aria-label*='light mode' i], " +
+      "[data-theme-toggle], [class*='theme-toggle' i], [id*='theme-toggle' i]",
+  ).length;
+  if (toggle > 0) {
+    return { supported: true, detail: "A theme toggle control is present on the page." };
+  }
+
+  if (/class=["'][^"']*\bdark\b/i.test(ctx.html.slice(0, 4000))) {
+    return { supported: true, detail: "Ships with a dark class applied to the document." };
+  }
+
+  if ($('meta[name="color-scheme"]').length > 0 || $("meta[media*='prefers-color-scheme']").length > 0) {
+    return {
+      supported: true,
+      detail: "Declares colour-scheme metadata for dark rendering.",
+    };
+  }
+
+  // Last resort: the media query appears somewhere we don't parse as CSS — typically
+  // matchMedia('(prefers-color-scheme: dark)') in a theme script.
+  if (/prefers-color-scheme/i.test(ctx.html)) {
+    return {
+      supported: true,
+      detail: "A script reads the visitor's colour-scheme preference to pick a theme.",
+    };
+  }
+
+  return {
+    supported: false,
+    detail:
+      "No dark-mode support found in the CSS or markup. Optional, but it signals attention to detail.",
+  };
+}
+
 /** Text/background pair declared for the page root, when the CSS states both. */
 function findRootColorPair(css: string): { color: Rgb; background: Rgb } | null {
   const blocks = css.split("}");
@@ -399,14 +504,13 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
           }`,
   });
 
-  const darkModeAware = /prefers-color-scheme/i.test(ctx.css) || $("[data-theme]").length > 0;
+  const darkMode = detectDarkMode(ctx);
+  const darkModeAware = darkMode.supported;
   checks.push({
     id: "design-dark-mode",
-    label: "Respects colour scheme preference",
+    label: "Dark mode support",
     status: darkModeAware ? "pass" : "warn",
-    detail: darkModeAware
-      ? "Honours prefers-color-scheme."
-      : "No dark-mode support. Optional, but it signals attention to detail.",
+    detail: darkMode.detail,
   });
 
   const colorPair = findRootColorPair(ctx.css);
@@ -444,15 +548,38 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
         : `${vagueLinks} link${vagueLinks === 1 ? "" : "s"} labelled "click here" / "read more" — say where they go.`,
   });
 
-  const inlineStyled = $("[style]").length;
+  /*
+   * Inline styles only indicate design drift when they carry *design* declarations.
+   * Animation libraries (Framer Motion, GSAP, AOS) write opacity/transform inline on
+   * every animated element, and custom properties are usually set inline for the same
+   * reason — counting those flagged well-built pages for using an animation library.
+   */
+  const ANIMATION_PROPS =
+    /^(opacity|transform|transform-origin|translate|rotate|scale|will-change|transition|animation|perspective|filter|backdrop-filter|visibility|pointer-events)$/i;
+
+  const totalInline = $("[style]").length;
+  const designInline = $("[style]")
+    .toArray()
+    .filter((el) =>
+      ($(el).attr("style") ?? "")
+        .split(";")
+        .map((declaration) => declaration.split(":")[0]?.trim().toLowerCase() ?? "")
+        .filter(Boolean)
+        .some((property) => !ANIMATION_PROPS.test(property) && !property.startsWith("--")),
+    ).length;
+  const animationOnly = totalInline - designInline;
+
   checks.push({
     id: "design-inline-styles",
     label: "Styling kept in stylesheets",
-    status: inlineStyled <= 10 ? "pass" : inlineStyled <= 40 ? "warn" : "fail",
+    status: designInline <= 10 ? "pass" : designInline <= 40 ? "warn" : "fail",
     detail:
-      inlineStyled <= 10
+      (designInline <= 10
         ? "Little or no inline styling."
-        : `${inlineStyled} elements carry inline style attributes, which usually means the design system drifted.`,
+        : `${designInline} elements carry inline design declarations, which usually means the design system drifted.`) +
+      (animationOnly > 0
+        ? ` (${animationOnly} animation-only inline style${animationOnly === 1 ? "" : "s"} ignored — those come from your animation library.)`
+        : ""),
   });
 
   const score = scoreFromChecks(checks, {

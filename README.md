@@ -83,6 +83,33 @@ across redirects), and caps the response body.
 Analyses are written to `data/history.json` (gitignored), most recent first, capped at 50.
 Writes are serialised in-process and land via temp-file rename. Delete the file to reset.
 
+## Tests
+
+```bash
+npm test          # vitest run
+npm run typecheck
+```
+
+The suite runs against HTML fixtures with no network, so it is fast and deterministic.
+It exists because the checks fail in a specific way: each one recognises a couple of
+idioms and quietly reports "not found" for every other way of doing the same thing. Each
+test names a real mechanism found on a live portfolio, so a regression shows up as a
+failing test rather than as advice the user has to disbelieve. Cases currently pinned:
+
+- **Dark mode** — media query, `.dark` class (incl. minified and Tailwind's escaped
+  variants), `data-theme`, `data-color-mode`, a visible toggle, and a `matchMedia` theme
+  script. Plus negative cases: `.darkred` and `.dark-blue` are not themes.
+- **Email contact** — `mailto:`, Gmail and Outlook compose URLs, an address in plain text
+  (partial credit), and none at all.
+- **Skills** — ambiguous words in prose ("express myself", "spring semester", "swift
+  turnaround", "in jest", "rust-red") must not register as frameworks, while `Express.js`,
+  `Spring Boot` and `SwiftUI` must, anywhere on the page.
+- **Projects** — `<ul>/<li>`, `<article>` and `<div>` grids all detected; blog indexes,
+  experience timelines and nav/footer lists rejected; stack names outside the taxonomy
+  still counted.
+- **Text extraction** — word boundaries survive server-rendered markup that carries no
+  whitespace between elements.
+
 ## Testing against local fixtures
 
 The SSRF guard blocks loopback addresses, so fixture testing needs an explicit opt-in that

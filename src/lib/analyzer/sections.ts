@@ -54,6 +54,16 @@ const DEFINITIONS: SectionDefinition[] = [
       "selected work",
       "recent work",
       "featured",
+      // Portfolios very often avoid the word "projects" entirely.
+      "things i've built",
+      "things i've made",
+      "things i built",
+      "what i've built",
+      "what i've made",
+      "working on",
+      "side projects",
+      "builds",
+      "experiments",
     ],
     slugs: ["project", "work", "portfolio", "case-stud", "casestud", "showcase"],
   },
@@ -92,8 +102,20 @@ const DEFINITIONS: SectionDefinition[] = [
     required: true,
     keywords: ["contact", "get in touch", "reach out", "hire me", "let's talk", "say hello"],
     slugs: ["contact", "get-in-touch", "hire", "connect"],
-    detect: (ctx) =>
-      ctx.$('a[href^="mailto:"]').length > 0 ? "mailto: link present" : null,
+    detect: (ctx) => {
+      if (ctx.$('a[href^="mailto:"]').length > 0) return "mailto: link present";
+      // Webmail compose links serve the same purpose as mailto: and are common.
+      const compose = ctx
+        .$("a[href]")
+        .toArray()
+        .find((el) =>
+          /mail\.google\.com\/mail|outlook\.(live|office)\.com|mail\.yahoo\.com|mail\.proton\.me/i.test(
+            ctx.$(el).attr("href") ?? "",
+          ),
+        );
+      if (compose) return "webmail compose link present";
+      return ctx.$('form input[type="email"]').length > 0 ? "contact form present" : null;
+    },
   },
   {
     id: "education",
@@ -141,7 +163,16 @@ const DEFINITIONS: SectionDefinition[] = [
 
 const SECTION_TAGS = "section, div, article, main, aside, header, footer, nav";
 
-function matchesKeyword(haystack: string, keywords: string[]): string | null {
+/**
+ * Curly and straight apostrophes are used interchangeably in headings ("Where I've
+ * Worked" vs "Where I’ve Worked"), and a keyword written one way missed the other.
+ */
+function normalizeQuotes(input: string): string {
+  return input.replace(/[’‘‛`´]/g, "'");
+}
+
+function matchesKeyword(rawHaystack: string, keywords: string[]): string | null {
+  const haystack = normalizeQuotes(rawHaystack);
   for (const keyword of keywords) {
     // Short keywords like "cv" need word boundaries or they match "cvs", "recv".
     const pattern =

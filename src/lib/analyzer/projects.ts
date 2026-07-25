@@ -143,6 +143,22 @@ function extractLinks(
   return { liveUrl, repoUrl };
 }
 
+/** Containers whose children are explicitly a stack listing rather than prose. */
+const TECH_LIST_SELECTOR = [
+  "[aria-label*='tech' i]",
+  "[aria-label*='stack' i]",
+  "[aria-label*='tool' i]",
+  "[aria-label*='built with' i]",
+  "[class*='tag' i]",
+  "[class*='badge' i]",
+  "[class*='chip' i]",
+  "[class*='pill' i]",
+  "[class*='stack' i]",
+  "[class*='tech' i]",
+].join(", ");
+
+const NOT_A_TAG = /^(and|or|with|using|built|made|the|a|an|\d+)$/i;
+
 function extractTechTags(ctx: PageContext, card: Element, description: string): string[] {
   const { $ } = ctx;
   const tagTexts = $(card)
@@ -154,7 +170,39 @@ function extractTechTags(ctx: PageContext, card: Element, description: string): 
   const fromTags = tagTexts.flatMap((text) => detectSkillNames(text, 2));
   const fromDescription = detectSkillNames(description, 6);
 
-  return [...new Set([...fromTags, ...fromDescription])].slice(0, 10);
+  /*
+   * Take the labels of an explicit stack list verbatim as well. The taxonomy will never
+   * cover every tool — a card listing "Zustand, Drizzle, Bun" was reported as having no
+   * tech stack, which is both wrong and unfixable from the author's side.
+   */
+  const literal: string[] = [];
+  $(card)
+    .find(TECH_LIST_SELECTOR)
+    .each((_, container) => {
+      const children = $(container).children().toArray() as Element[];
+      const texts =
+        children.length > 0
+          ? children.map((child) => collapse($(child).text()))
+          : [collapse($(container).text())];
+
+      for (const text of texts) {
+        if (text.length === 0 || text.length > 24) continue;
+        if (wordCount(text) > 3 || !/[a-z]/i.test(text) || NOT_A_TAG.test(text)) continue;
+        literal.push(text);
+      }
+    });
+
+  // Taxonomy names first so canonical spellings win over whatever the page typed.
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const tag of [...fromTags, ...fromDescription, ...literal]) {
+    const key = tag.toLowerCase().replace(/[.\s-]/g, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+  }
+
+  return tags.slice(0, 10);
 }
 
 function countImages(ctx: PageContext, card: Element): number {

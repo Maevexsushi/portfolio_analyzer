@@ -1,5 +1,6 @@
 import type { PageContext } from "./context";
-import { collapse, selectorHints } from "./context";
+import type { Element } from "domhandler";
+import { collapse, selectorHints, textOf } from "./context";
 import type { Check, SkillCategory, SkillFinding, SkillsReport } from "@/lib/types";
 
 /**
@@ -13,29 +14,53 @@ import type { Check, SkillCategory, SkillFinding, SkillsReport } from "@/lib/typ
 interface SkillDefinition {
   name: string;
   category: SkillCategory;
+  /** Unambiguous forms ("express.js", "spring boot"). Counted anywhere on the page. */
   patterns: string[];
+  /**
+   * Bare names that are also ordinary English words ("express", "spring", "swift",
+   * "jest", "rust", "ts"). Counted only in trusted context — inside a skills section
+   * or a project's tech-tag list — because matching them in prose invents skills the
+   * author never claimed, and then advises them to "list more of your stack".
+   */
+  declaredOnly?: string[];
 }
 
 const TAXONOMY: SkillDefinition[] = [
   // languages
   { name: "JavaScript", category: "languages", patterns: ["javascript", "\\bjs\\b(?! ?doc)"] },
-  { name: "TypeScript", category: "languages", patterns: ["typescript", "\\bts\\b"] },
+  { name: "TypeScript", category: "languages", patterns: ["typescript"], declaredOnly: ["\\bts\\b"] },
   { name: "Python", category: "languages", patterns: ["python"] },
   { name: "Java", category: "languages", patterns: ["\\bjava\\b(?!script)"] },
   { name: "C#", category: "languages", patterns: ["c#", "c sharp", "csharp"] },
   { name: "C++", category: "languages", patterns: ["c\\+\\+", "cplusplus"] },
   { name: "Go", category: "languages", patterns: ["\\bgolang\\b", "\\bgo\\b(?= ?(lang|programming))"] },
-  { name: "Rust", category: "languages", patterns: ["\\brust\\b"] },
+  {
+    name: "Rust",
+    category: "languages",
+    patterns: ["rustlang", "rust lang", "\\brust\\b(?=\\s*\\()"],
+    declaredOnly: ["\\brust\\b"],
+  },
   { name: "PHP", category: "languages", patterns: ["\\bphp\\b"] },
-  { name: "Ruby", category: "languages", patterns: ["\\bruby\\b"] },
-  { name: "Swift", category: "languages", patterns: ["\\bswift\\b"] },
+  { name: "Ruby", category: "languages", patterns: ["ruby on rails"], declaredOnly: ["\\bruby\\b"] },
+  {
+    name: "Swift",
+    category: "languages",
+    patterns: ["swiftui", "swift ui", "swift package"],
+    declaredOnly: ["\\bswift\\b"],
+  },
   { name: "Kotlin", category: "languages", patterns: ["kotlin"] },
-  { name: "Dart", category: "languages", patterns: ["\\bdart\\b"] },
+  {
+    name: "Dart",
+    category: "languages",
+    patterns: ["dartlang", "dart & flutter", "dart/flutter"],
+    declaredOnly: ["\\bdart\\b"],
+  },
   { name: "SQL", category: "languages", patterns: ["\\bsql\\b"] },
   { name: "Bash", category: "languages", patterns: ["\\bbash\\b", "shell scripting"] },
 
   // frontend
-  { name: "React", category: "frontend", patterns: ["\\breact\\b(?!ive)"] },
+  // "built with React" must count, but "react to feedback" must not.
+  { name: "React", category: "frontend", patterns: ["react\\.?js", "\\breact\\b(?!ive|\\s+to\\b)"] },
   { name: "Next.js", category: "frontend", patterns: ["next\\.?js"] },
   { name: "Vue", category: "frontend", patterns: ["vue\\.?js", "\\bvue\\b"] },
   { name: "Nuxt", category: "frontend", patterns: ["nuxt"] },
@@ -43,23 +68,33 @@ const TAXONOMY: SkillDefinition[] = [
   { name: "Svelte", category: "frontend", patterns: ["svelte"] },
   { name: "HTML", category: "frontend", patterns: ["\\bhtml5?\\b"] },
   { name: "CSS", category: "frontend", patterns: ["\\bcss3?\\b"] },
-  { name: "Sass", category: "frontend", patterns: ["\\bsass\\b", "\\bscss\\b"] },
+  { name: "Sass", category: "frontend", patterns: ["\\bscss\\b", "sass/scss"], declaredOnly: ["\\bsass\\b"] },
   { name: "Tailwind CSS", category: "frontend", patterns: ["tailwind"] },
   { name: "Bootstrap", category: "frontend", patterns: ["bootstrap"] },
   { name: "Redux", category: "frontend", patterns: ["redux"] },
   { name: "jQuery", category: "frontend", patterns: ["jquery"] },
-  { name: "Astro", category: "frontend", patterns: ["\\bastro\\b"] },
+  { name: "Astro", category: "frontend", patterns: ["astro\\.build", "astrojs"], declaredOnly: ["\\bastro\\b"] },
   { name: "Three.js", category: "frontend", patterns: ["three\\.?js"] },
   { name: "Framer Motion", category: "frontend", patterns: ["framer motion"] },
 
   // backend
-  { name: "Node.js", category: "backend", patterns: ["node\\.?js", "\\bnode\\b"] },
-  { name: "Express", category: "backend", patterns: ["express\\.?js", "\\bexpress\\b"] },
+  { name: "Node.js", category: "backend", patterns: ["node\\.?js", "nodejs"], declaredOnly: ["\\bnode\\b"] },
+  { name: "Express", category: "backend", patterns: ["express\\.?js", "expressjs"], declaredOnly: ["\\bexpress\\b"] },
   { name: "NestJS", category: "backend", patterns: ["nest\\.?js"] },
   { name: "Django", category: "backend", patterns: ["django"] },
-  { name: "Flask", category: "backend", patterns: ["flask"] },
+  {
+    name: "Flask",
+    category: "backend",
+    patterns: ["flask api", "flask app", "python flask"],
+    declaredOnly: ["\\bflask\\b"],
+  },
   { name: "FastAPI", category: "backend", patterns: ["fastapi"] },
-  { name: "Spring", category: "backend", patterns: ["spring boot", "\\bspring\\b"] },
+  {
+    name: "Spring",
+    category: "backend",
+    patterns: ["spring boot", "springboot", "spring framework", "spring mvc"],
+    declaredOnly: ["\\bspring\\b"],
+  },
   { name: "Laravel", category: "backend", patterns: ["laravel"] },
   { name: "Rails", category: "backend", patterns: ["ruby on rails", "\\brails\\b"] },
   { name: ".NET", category: "backend", patterns: ["\\.net\\b", "asp\\.net", "dotnet"] },
@@ -98,7 +133,12 @@ const TAXONOMY: SkillDefinition[] = [
   { name: "Flutter", category: "mobile", patterns: ["flutter"] },
   { name: "iOS", category: "mobile", patterns: ["\\bios\\b", "swiftui"] },
   { name: "Android", category: "mobile", patterns: ["android"] },
-  { name: "Expo", category: "mobile", patterns: ["\\bexpo\\b"] },
+  {
+    name: "Expo",
+    category: "mobile",
+    patterns: ["expo go", "expo sdk", "expo router"],
+    declaredOnly: ["\\bexpo\\b"],
+  },
 
   // design
   { name: "Figma", category: "design", patterns: ["figma"] },
@@ -115,14 +155,19 @@ const TAXONOMY: SkillDefinition[] = [
   { name: "NumPy", category: "data", patterns: ["numpy"] },
   { name: "TensorFlow", category: "data", patterns: ["tensorflow"] },
   { name: "PyTorch", category: "data", patterns: ["pytorch"] },
-  { name: "Machine Learning", category: "data", patterns: ["machine learning", "\\bml\\b"] },
+  { name: "Machine Learning", category: "data", patterns: ["machine learning"], declaredOnly: ["\\bml\\b"] },
   { name: "Data Analysis", category: "data", patterns: ["data analysis", "data analytics"] },
   { name: "Power BI", category: "data", patterns: ["power bi"] },
   { name: "Tableau", category: "data", patterns: ["tableau"] },
   { name: "LLMs / AI", category: "data", patterns: ["\\bllm", "openai", "\\bgpt-?4", "anthropic", "\\bclaude\\b"] },
 
   // testing
-  { name: "Jest", category: "testing", patterns: ["\\bjest\\b"] },
+  {
+    name: "Jest",
+    category: "testing",
+    patterns: ["jestjs", "jest\\.config", "jest snapshot"],
+    declaredOnly: ["\\bjest\\b"],
+  },
   { name: "Vitest", category: "testing", patterns: ["vitest"] },
   { name: "Cypress", category: "testing", patterns: ["cypress"] },
   { name: "Playwright", category: "testing", patterns: ["playwright"] },
@@ -132,7 +177,7 @@ const TAXONOMY: SkillDefinition[] = [
 
   // tools
   { name: "Webpack", category: "tools", patterns: ["webpack"] },
-  { name: "Vite", category: "tools", patterns: ["\\bvite\\b"] },
+  { name: "Vite", category: "tools", patterns: ["vitejs", "vite\\.config"], declaredOnly: ["\\bvite\\b"] },
   { name: "Jira", category: "tools", patterns: ["\\bjira\\b"] },
   { name: "Agile / Scrum", category: "tools", patterns: ["\\bagile\\b", "\\bscrum\\b"] },
   { name: "Storybook", category: "tools", patterns: ["storybook"] },
@@ -141,11 +186,16 @@ const TAXONOMY: SkillDefinition[] = [
   { name: "Shopify", category: "tools", patterns: ["shopify"] },
 ];
 
-/** Names from the taxonomy found in an arbitrary snippet — used for project tech tags. */
+/**
+ * Names from the taxonomy found in an arbitrary snippet — used for project tech tags.
+ * A short tag string ("Express", "Rust") is a stack listing rather than prose, so the
+ * ambiguous `declaredOnly` names are in scope here.
+ */
 export function detectSkillNames(snippet: string, limit = 8): string[] {
   const found: string[] = [];
   for (const definition of TAXONOMY) {
-    if (definition.patterns.some((pattern) => new RegExp(pattern, "i").test(snippet))) {
+    const patterns = [...definition.patterns, ...(definition.declaredOnly ?? [])];
+    if (patterns.some((pattern) => new RegExp(pattern, "i").test(snippet))) {
       found.push(definition.name);
       if (found.length >= limit) break;
     }
@@ -178,8 +228,10 @@ function skillsSectionText(ctx: PageContext): string {
   const { $ } = ctx;
   const chunks: string[] = [];
 
+  // textOf, not .text(): a list of skill chips carries no whitespace between the
+  // items, and "TSExpressSpring" matches none of the word-boundary patterns.
   $(SKILLS_SECTION_SELECTOR).each((_, el) => {
-    const text = collapse($(el).text());
+    const text = textOf($, el as Element);
     if (text && text.length < 4000) chunks.push(text);
   });
 
@@ -188,8 +240,14 @@ function skillsSectionText(ctx: PageContext): string {
   ctx.$("h1, h2, h3, h4").each((_, el) => {
     const heading = collapse($(el).text()).toLowerCase();
     if (/skill|stack|technolog|tool|expertise/.test(heading)) {
-      chunks.push(collapse($(el).parent().text()).slice(0, 4000));
-      chunks.push(collapse($(el).nextAll().slice(0, 3).text()).slice(0, 4000));
+      const parent = $(el).parent()[0] as Element | undefined;
+      if (parent) chunks.push(textOf($, parent).slice(0, 4000));
+      $(el)
+        .nextAll()
+        .slice(0, 3)
+        .each((__, sibling) => {
+          chunks.push(textOf($, sibling as Element).slice(0, 4000));
+        });
     }
   });
 
@@ -207,10 +265,21 @@ export function analyzeSkills(ctx: PageContext): SkillsReport {
     let mentions = 0;
     let declared = false;
 
+    // Unambiguous forms: trust them anywhere on the page.
     for (const pattern of definition.patterns) {
       const regex = new RegExp(pattern, "gi");
       mentions += (haystack.match(regex) ?? []).length;
       if (!declared && new RegExp(pattern, "i").test(declaredText)) declared = true;
+    }
+
+    // Ambiguous bare words: only inside the skills section, where "Express" in a list
+    // means the framework and cannot mean "express myself".
+    for (const pattern of definition.declaredOnly ?? []) {
+      const inDeclared = (declaredText.match(new RegExp(pattern, "gi")) ?? []).length;
+      if (inDeclared > 0) {
+        mentions += inDeclared;
+        declared = true;
+      }
     }
 
     if (mentions > 0) {

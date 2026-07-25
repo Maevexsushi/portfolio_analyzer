@@ -36,6 +36,34 @@ const PLATFORMS: { platform: string; pattern: RegExp; kind: LinkKind }[] = [
 const RESUME_PATTERN = /resume|\bcv\b|curriculum[-_ ]?vitae/i;
 const PLACEHOLDER_PATTERN = /^(#|javascript:void\(0\)|javascript:;|)$/i;
 
+/**
+ * Webmail compose links are email contacts too.
+ *
+ * Plenty of portfolios link a Gmail or Outlook compose URL instead of `mailto:` —
+ * it opens a pre-filled message in one click, which is exactly what the check is for.
+ * Treating only `mailto:` as an email contact reported these pages as having none.
+ */
+const WEBMAIL_COMPOSE =
+  /^https?:\/\/(mail\.google\.com\/mail|outlook\.(live|office|office365)\.com|mail\.yahoo\.com|mail\.proton\.me|compose\.mail\.yahoo\.com)/i;
+
+/**
+ * Visible-text email address, used to give partial credit when nothing is linked.
+ * Only the rendered text is searched, so form `placeholder` values (the usual source
+ * of dummy addresses) are out of scope by construction.
+ */
+const EMAIL_IN_TEXT = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}\b/;
+
+/** The recipient a webmail compose URL is addressed to, for display. */
+function composeRecipient(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const to = parsed.searchParams.get("to") ?? parsed.searchParams.get("mailto");
+    return to ? to.split(",")[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 function classify(
   href: string,
   absolute: string,
@@ -45,6 +73,7 @@ function classify(
   if (href.startsWith("mailto:")) return { kind: "email", platform: null };
   if (href.startsWith("tel:")) return { kind: "phone", platform: null };
   if (href.startsWith("#")) return { kind: "anchor", platform: null };
+  if (WEBMAIL_COMPOSE.test(absolute)) return { kind: "email", platform: "Webmail compose" };
 
   for (const entry of PLATFORMS) {
     if (entry.pattern.test(absolute)) return { kind: entry.kind, platform: entry.platform };
@@ -154,7 +183,14 @@ export async function analyzeLinks(
     predicate: (link: LinkFinding) => boolean,
   ): EssentialLink => {
     const match = links.find(predicate);
-    return { id, label, found: Boolean(match), url: match?.url ?? null };
+    return {
+      id,
+      label,
+      found: Boolean(match),
+      url: match?.url ?? null,
+      status: match ? "pass" : "fail",
+      note: null,
+    };
   };
 
   const essentials: EssentialLink[] = [
@@ -163,6 +199,20 @@ export async function analyzeLinks(
     findEssential("email", "Email address", (link) => link.kind === "email"),
     findEssential("resume", "Resume / CV link", (link) => link.kind === "resume"),
   ];
+
+  // An address printed as plain text is worth partial credit: the information is there,
+  // it just costs the reader a copy-paste.
+  const emailEssential = essentials.find((entry) => entry.id === "email")!;
+  const textEmail = EMAIL_IN_TEXT.exec(ctx.text)?.[0] ?? null;
+  if (!emailEssential.found && textEmail) {
+    emailEssential.status = "warn";
+    emailEssential.url = null;
+    emailEssential.note = `${textEmail} appears in the page text but is not a clickable link`;
+  } else if (emailEssential.found) {
+    const link = links.find((candidate) => candidate.kind === "email");
+    const recipient = link ? composeRecipient(link.url) : null;
+    if (recipient) emailEssential.note = `webmail compose link to ${recipient}`;
+  }
 
   const brokenEssential = essentials.some(
     (essential) =>
@@ -217,10 +267,13 @@ export async function analyzeLinks(
     {
       id: "links-email",
       label: "Email contact",
-      status: essentials[2].found ? "pass" : "fail",
-      detail: essentials[2].found
-        ? `Contact via ${essentials[2].url?.replace("mailto:", "")}`
-        : "No mailto: link found. A contact form alone loses people who prefer email.",
+      status: emailEssential.status,
+      detail:
+        emailEssential.status === "pass"
+          ? `Reachable by email — ${emailEssential.note ?? emailEssential.url?.replace("mailto:", "")}.`
+          : emailEssential.status === "warn"
+            ? `${emailEssential.note}. Wrap it in a mailto: link so one click opens a draft.`
+            : "No email link and no address in the page text. A contact form alone loses people who prefer email.",
     },
     {
       id: "links-resume",
