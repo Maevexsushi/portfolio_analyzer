@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ada Okonkwo — Full-Stack Developer</title>
+    <meta
+      name="description"
+      content="Full-stack developer building accessible web apps with TypeScript, React, and Postgres. Case studies, source code, and a downloadable CV."
+    />
+    <meta property="og:title" content="Ada Okonkwo — Full-Stack Developer" />
+    <meta property="og:description" content="Full-stack developer building accessible web apps." />
+    <meta property="og:image" content="https://example.com/og.png" />
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      :root {
+        --ink: #101418;
+        --paper: #ffffff;
+        --brand: #1d4ed8;
+        --muted: #4a5568;
+      }
+      body {
+        color: #101418;
+        background-color: #ffffff;
+        font-family: "General Sans", system-ui, sans-serif;
+        margin: 0;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: "General Sans", system-ui, sans-serif;
+      }
+      code {
+        font-family: "Berkeley Mono", monospace;
+      }
+      .grid {
+        display: grid;
+        gap: 2rem;
+      }
+      @media (min-width: 640px) {
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (min-width: 1024px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #f4f6fa;
+          background-color: #0d1117;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="#about">About</a></li>
+          <li><a href="#projects">Projects</a></li>
+          <li><a href="#skills">Skills</a></li>
+          <li><a href="#experience">Experience</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section id="hero">
+        <h1>Ada Okonkwo — Full-Stack Developer</h1>
+        <p>
+          I build accessible, fast web applications with TypeScript, React, and Postgres.
+          Currently open to backend-leaning full-stack roles in Berlin or remote.
+        </p>
+        <a href="/ada-okonkwo-resume.pdf">Download my resume (PDF)</a>
+      </section>
+
+      <section id="about">
+        <h2>About me</h2>
+        <p>
+          I moved into software from civil engineering in 2021 after automating a survey
+          workflow that had eaten two days a week of my team's time. Since then I have shipped
+          production TypeScript at a logistics startup, contributed accessibility fixes to two
+          open-source design systems, and mentored eleven people through their first
+          deployments. I care most about the unglamorous parts: migrations that do not lose
+          data, error states that explain themselves, and interfaces that work with a keyboard.
+        </p>
+        <p>
+          Outside work I maintain a small library for parsing GPS traces and I am slowly
+          learning Rust by rewriting my own tools in it. I am looking for a team that reviews
+          code carefully and ships often.
+        </p>
+      </section>
+
+      <section id="projects">
+        <h2>Selected projects</h2>
+        <div class="grid">
+          <article>
+            <h3>Fleetwise — route optimisation dashboard</h3>
+            <img src="/img/fleetwise.webp" alt="Fleetwise dashboard showing optimised delivery routes on a map" width="640" height="400" loading="lazy" />
+            <p>
+              A dashboard that plans daily delivery routes for a 40-vehicle fleet. I built the
+              scheduling service in Node.js and Postgres, cut the nightly optimisation run from
+              14 minutes to 40 seconds by replacing nested queries with a single recursive CTE,
+              and added a keyboard-driven dispatch view the operators actually use.
+            </p>
+            <ul aria-label="Technologies used">
+              <li>TypeScript</li>
+              <li>Node.js</li>
+              <li>PostgreSQL</li>
+              <li>React</li>
+              <li>Docker</li>
+            </ul>
+            <a href="https://fleetwise-demo.example.com">View the live demo</a>
+            <a href="https://github.com/example/fleetwise">Read the source code</a>
+          </article>
+
+          <article>
+            <h3>Trace — GPS trace parser</h3>
+            <img src="/img/trace.webp" alt="Terminal output of the Trace CLI summarising a GPS file" width="640" height="400" loading="lazy" />
+            <p>
+              A zero-dependency parser for GPX and FIT files, published to npm with 4,000 weekly
+              downloads. Written in TypeScript with a streaming API so a 200 MB ride file parses
+              in constant memory. I wrote the fuzz tests that found three malformed-input crashes
+              in the previous implementation.
+            </p>
+            <ul aria-label="Technologies used">
+              <li>TypeScript</li>
+              <li>Vitest</li>
+              <li>GitHub Actions</li>
+            </ul>
+            <a href="https://trace-docs.example.com">Documentation and live playground</a>
+            <a href="https://github.com/example/trace">Read the source code</a>
+          </article>
+
+          <article>
+            <h3>Quietroom — accessible group chat</h3>
+            <img src="/img/quietroom.webp" alt="Quietroom chat interface with high-contrast theme" width="640" height="400" loading="lazy" />
+            <p>
+              A small real-time chat app built to test how far you can get with server-sent
+              events instead of WebSockets. Screen-reader users can follow a conversation without
+              losing their place because new messages are announced through a polite live region
+              rather than moving focus. Deployed on Fly.io behind a Redis pub/sub fan-out.
+            </p>
+            <ul aria-label="Technologies used">
+              <li>React</li>
+              <li>Redis</li>
+              <li>Tailwind CSS</li>
+              <li>Playwright</li>
+            </ul>
+            <a href="https://quietroom.example.com">Try the live app</a>
+            <a href="https://github.com/example/quietroom">Read the source code</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="skills">
+        <h2>Skills &amp; tech stack</h2>
+        <ul>
+          <li>TypeScript</li>
+          <li>JavaScript</li>
+          <li>Python</li>
+          <li>React</li>
+          <li>Next.js</li>
+          <li>Tailwind CSS</li>
+          <li>Node.js</li>
+          <li>Express</li>
+          <li>GraphQL</li>
+          <li>PostgreSQL</li>
+          <li>Redis</li>
+          <li>Prisma</li>
+          <li>Docker</li>
+          <li>AWS</li>
+          <li>GitHub Actions</li>
+          <li>Terraform</li>
+          <li>Vitest</li>
+          <li>Playwright</li>
+          <li>Figma</li>
+          <li>Accessibility</li>
+        </ul>
+      </section>
+
+      <section id="experience">
+        <h2>Experience</h2>
+        <ol>
+          <li>
+            <h3>Full-stack engineer — Hafenlogistik GmbH (2022–present)</h3>
+            <p>
+              Own the dispatch and billing services. Led the migration from a single Rails
+              monolith to two TypeScript services without downtime, and introduced the
+              contract tests that now gate every deploy.
+            </p>
+          </li>
+          <li>
+            <h3>Junior developer — Studio Nordlicht (2021–2022)</h3>
+            <p>
+              Built client sites and internal tools, and rebuilt the studio's own site to pass
+              WCAG AA after an audit found 40 issues.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="education">
+        <h2>Education</h2>
+        <p>BSc Civil Engineering, University of Lagos. Full-stack bootcamp, Le Wagon Berlin.</p>
+      </section>
+
+      <section id="contact">
+        <h2>Get in touch</h2>
+        <p>
+          The fastest way to reach me is email. I answer everything within a day or two.
+        </p>
+        <ul>
+          <li><a href="mailto:ada@example.com">ada@example.com</a></li>
+          <li><a href="https://github.com/example" rel="noopener noreferrer" target="_blank">GitHub profile</a></li>
+          <li>
+            <a href="https://www.linkedin.com/in/example" rel="noopener noreferrer" target="_blank">
+              LinkedIn profile
+            </a>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Ada Okonkwo. Built by hand, deployed on every push.</p>
+    </footer>
+  </body>
+</html>

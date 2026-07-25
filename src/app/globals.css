@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Light and dark are both first-class: the palette is defined here as
+ * CSS variables and mapped into Tailwind's theme so utilities like `bg-surface` and
+ * `text-muted` work in both modes without per-element dark: variants.
+ */
+@theme {
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f3f7;
+  --color-line: #e2e5ec;
+  --color-line-strong: #cbd1dd;
+  --color-ink: #12151c;
+  --color-ink-soft: #3d4453;
+  --color-muted: #6b7385;
+
+  --color-brand: #4f46e5;
+  --color-brand-soft: #eef0fe;
+  --color-brand-ink: #3730b3;
+
+  --color-good: #158a55;
+  --color-good-soft: #e4f5ec;
+  --color-warn: #a86000;
+  --color-warn-soft: #fdf1de;
+  --color-bad: #c3311f;
+  --color-bad-soft: #fdeceb;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /*
+     * Data-visualization marks. Separate from the text tokens above on purpose:
+     * these are fill colors for bars, meters, and dots — never text. Values are the
+     * validated status palette (good / warning / critical) plus a single-hue blue
+     * ramp for plain magnitude. `warn` sits below 3:1 on a white surface by design,
+     * so every mark that uses it also carries a numeric label and a text status —
+     * colour never carries meaning on its own here.
+     */
+    --viz-good: #0ca30c;
+    --viz-warn: #fab219;
+    --viz-bad: #d03b3b;
+    --viz-seq: #2a78d6;
+    --viz-grid: #e2e5ec;
+  }
+
+  /* Dark palette: same token names, re-pointed. Kept in sync with @theme above. */
+  :root:where(.dark, [data-theme="dark"]) {
+    color-scheme: dark;
+    --color-canvas: #0b0d12;
+    --color-surface: #14171f;
+    --color-surface-2: #1c2029;
+    --color-line: #262b36;
+    --color-line-strong: #384150;
+    --color-ink: #f2f4f8;
+    --color-ink-soft: #ccd2de;
+    --color-muted: #8b93a5;
+
+    --color-brand: #8b83ff;
+    --color-brand-soft: #211f3d;
+    --color-brand-ink: #b6b0ff;
+
+    --color-good: #3fce8f;
+    --color-good-soft: #10281e;
+    --color-warn: #e0a34a;
+    --color-warn-soft: #2a2013;
+    --color-bad: #f0776a;
+    --color-bad-soft: #2c1616;
+
+    --viz-seq: #3987e5;
+    --viz-grid: #262b36;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light):not([data-theme="light"]) {
+      color-scheme: dark;
+      --color-canvas: #0b0d12;
+      --color-surface: #14171f;
+      --color-surface-2: #1c2029;
+      --color-line: #262b36;
+      --color-line-strong: #384150;
+      --color-ink: #f2f4f8;
+      --color-ink-soft: #ccd2de;
+      --color-muted: #8b93a5;
+
+      --color-brand: #8b83ff;
+      --color-brand-soft: #211f3d;
+      --color-brand-ink: #b6b0ff;
+
+      --color-good: #3fce8f;
+      --color-good-soft: #10281e;
+      --color-warn: #e0a34a;
+      --color-warn-soft: #2a2013;
+      --color-bad: #f0776a;
+      --color-bad-soft: #2c1616;
+
+      --viz-seq: #3987e5;
+      --viz-grid: #262b36;
+    }
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Sticky section nav must not cover the heading it scrolls to. */
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 0.875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Print: the results page doubles as a fallback report if PDF export is unavailable. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .card {
+    break-inside: avoid;
+    border-color: #ccc;
+  }
+}
