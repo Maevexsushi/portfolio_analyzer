@@ -271,6 +271,22 @@ export interface AiHighlight {
 }
 
 /**
+ * A short interview-prep briefing built only from pages the company itself published
+ * and fetched fresh for this request — never from the model's own training data, which
+ * has no way of being current for a specific company. See src/lib/ai/companybrief.ts.
+ */
+export interface CompanyBrief {
+  model: string;
+  generatedAt: string;
+  /** The pages actually fetched and read, so the reader knows exactly what this covers. */
+  sourceUrls: string[];
+  whatTheyDo: string;
+  focusAreas: AiHighlight[];
+  cultureSignals: AiHighlight[];
+  notes: string[];
+}
+
+/**
  * The editorial read: what a human reviewer would say about the *substance* of the
  * work, which no amount of static checking can reach. Optional everywhere — a report
  * without an API key configured is still a complete report.

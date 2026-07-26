@@ -29,6 +29,10 @@ export default function JobMatchPage() {
         <Link href="/job-match/rank" className="font-semibold text-brand-ink hover:underline">
           Rank several against this resume at once
         </Link>
+        . About to interview?{" "}
+        <Link href="/company-brief" className="font-semibold text-brand-ink hover:underline">
+          Get a briefing on the company
+        </Link>
         .
       </p>
     </div>
