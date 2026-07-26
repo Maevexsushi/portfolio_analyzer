@@ -18,6 +18,7 @@ const KIND_LABEL: Record<HistoryEntry["kind"], string> = {
 
 export default async function HistoryPage() {
   const entries: HistoryEntry[] = await listHistory().catch(() => []);
+  const resumeCount = entries.filter((entry) => entry.kind === "resume").length;
 
   /*
    * Group by subject so repeat runs read as a progression. Keyed by kind as well as
@@ -57,7 +58,21 @@ export default async function HistoryPage() {
           </Link>
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
+        <form action="/compare" method="GET" className="mt-8 space-y-6">
+          {resumeCount >= 2 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-2/50 px-4 py-3 text-sm">
+              <p className="text-ink-soft">
+                Tick two or more resumes below to compare them side by side.
+              </p>
+              <button
+                type="submit"
+                className="btn-brand shrink-0 rounded-lg px-3.5 py-2 text-sm font-bold"
+              >
+                Compare selected
+              </button>
+            </div>
+          )}
+
           {[...bySubject.entries()].map(([key, runs]) => {
             const latest = runs[0];
             const previous = runs[1];
@@ -101,6 +116,17 @@ export default async function HistoryPage() {
                       key={entry.id}
                       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2/50"
                     >
+                      {entry.kind === "resume" ? (
+                        <input
+                          type="checkbox"
+                          name="ids"
+                          value={entry.id}
+                          aria-label={`Select ${entry.title} to compare`}
+                          className="h-4 w-4 shrink-0 rounded border-line-strong accent-brand"
+                        />
+                      ) : (
+                        <span className="w-4 shrink-0" aria-hidden />
+                      )}
                       <span
                         aria-hidden
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -129,7 +155,7 @@ export default async function HistoryPage() {
               </section>
             );
           })}
-        </div>
+        </form>
       )}
     </div>
   );
