@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 
@@ -14,14 +15,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <header className="no-print sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+            {/*
+              The mark carries the brand; the name is live text beside it rather than
+              part of the image. Two reasons: the wordmark in the supplied lockup is
+              navy, which all but disappears on the dark canvas, and text re-colours
+              with the theme for free. It also keeps the name selectable and readable
+              to a screen reader, so the logo itself needs no alt text.
+            */}
             <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span
+              <Image
+                src="/logo-mark.png"
+                alt=""
                 aria-hidden
-                className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm font-bold text-white"
-              >
-                PA
-              </span>
-              Portfolio Analyzer
+                width={28}
+                height={28}
+                priority
+                className="h-7 w-7"
+              />
+              Profiled
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               <Link
