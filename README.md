@@ -354,13 +354,17 @@ claims about your career.
 Paste a job posting on the Job Match page (`/job-match`, linked in the nav — a resume
 uploaded there gets a focused report with just the Job Match and Cover Letter tabs,
 not the full resume breakdown) and get back the same thing every ATS keyword checker
-does under the hood — except it says so.
+does under the hood — except it says so. The field also takes just the posting's link
+instead of the pasted text: when it is nothing but a URL, the page is fetched fresh
+through the same SSRF-guarded fetcher the website analyzer uses
+([src/lib/fetcher.ts](src/lib/fetcher.ts)) and matched on what comes back; a link that
+fails to fetch is reported as an error rather than matched against nothing.
 [src/lib/jobmatch/](src/lib/jobmatch/) splits the posting into required and preferred
 zones by heading (an undifferentiated posting is treated as entirely required — a
 poster who cared enough to separate "nice to have" would have said so), then matches
-both zones against the same skill vocabulary the resume was scored with. Pure text
-comparison: no AI, no network call, nothing that can hallucinate a match that is not
-there.
+both zones against the same skill vocabulary the resume was scored with. The matching
+itself is pure text comparison — no AI, nothing that can hallucinate a match that is
+not there — the only network call is the optional fetch to resolve a link into text.
 
 A matched skill is not just a checkmark — it carries the resume's own evidence for it
 (how many times it appears, and whether it was actually listed in a skills section or
@@ -527,7 +531,8 @@ dropped, and the briefing still runs from whichever pages succeeded.
 ```
 POST   /api/analyze       { url, checkLinks?, ai?, save?: boolean } -> { result, trend }
 POST   /api/analyze/file  multipart: file, documentKind?, discipline?, ai?, checkLinks?,
-                          rewrite?, jobDescription?, coverLetterText?, coverLetterDraft?,
+                          rewrite?, jobDescription? (pasted text or a bare posting link,
+                          fetched fresh when it's a link), coverLetterText?, coverLetterDraft?,
                           skillGapNotes?, focus? ("full" | "jobmatch"), save?
                           -> { result, trend, detectedKind, classificationConfidence }
 GET    /api/history       -> { entries }
