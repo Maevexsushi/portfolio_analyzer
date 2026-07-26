@@ -71,6 +71,8 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   work: "The Work",
   presentation: "Presentation",
   deliverability: "Deliverability",
+  jobmatch: "Job Match",
+  coverletter: "Cover Letter",
 };
 
 export function gradeFor(score: number): string {

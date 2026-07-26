@@ -4,6 +4,7 @@ import type {
   AnyResult,
   Check,
   CheckStatus,
+  CoverLetterDraft,
   ResumeRewrite,
   Severity,
 } from "./types";
@@ -712,6 +713,41 @@ export async function buildRewritePdf(
 
   report.finish(
     `Draft rewritten by ${rewrite.model} from ${fileName}. Nothing here was invented — check every line before you send it.`,
+  );
+
+  return doc.save();
+}
+
+/**
+ * The cover letter draft as a document. Plain, one column, no colour — a letter, not a
+ * report about one. The footer names the model and repeats the same "read every line"
+ * caution the on-screen panel gives, since a printed page loses whatever warning banner
+ * sat above it in the browser.
+ */
+export async function buildCoverLetterPdf(
+  draft: CoverLetterDraft,
+  fileName: string,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Cover letter — ${fileName}`);
+  doc.setCreator("Profiled");
+
+  const fonts: Fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+  };
+  const report = new ReportBuilder(doc, fonts);
+
+  report.text(draft.greeting, { size: 11, color: INK });
+  report.gap(14);
+  for (const paragraph of draft.paragraphs) {
+    report.text(paragraph, { size: 10.5, color: INK, leading: 15 });
+    report.gap(10);
+  }
+  report.text(draft.closing, { size: 10.5, color: INK });
+
+  report.finish(
+    `Drafted by ${draft.model} from ${fileName}'s resume. Nothing here was invented — read every line before you send it.`,
   );
 
   return doc.save();

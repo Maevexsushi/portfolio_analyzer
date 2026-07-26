@@ -8,6 +8,8 @@ import { ReportTabs, type ReportTab } from "@/components/ReportTabs";
 import { AiReviewPanel } from "@/components/panels/AiReviewPanel";
 import { DesignPanel } from "@/components/panels/DesignPanel";
 import { DisciplinePanel } from "@/components/panels/DisciplinePanel";
+import { CoverLetterPanel } from "@/components/panels/CoverLetterPanel";
+import { JobMatchPanel } from "@/components/panels/JobMatchPanel";
 import {
   DeliverabilityPanel,
   PresentationPanel,
@@ -155,6 +157,26 @@ function tabsFor(result: AnyResult): ReportTab[] {
         ),
       },
       ...shared,
+      {
+        id: "jobmatch",
+        label: "Job match",
+        score: result.jobMatch?.score ?? undefined,
+        ...(result.jobMatch ? countIssues(result.jobMatch.checks) : {}),
+        content: <JobMatchPanel report={result.jobMatch} />,
+      },
+      {
+        id: "coverletter",
+        label: "Cover letter",
+        score: result.coverLetter?.score ?? undefined,
+        ...(result.coverLetter ? countIssues(result.coverLetter.checks) : {}),
+        content: (
+          <CoverLetterPanel
+            report={result.coverLetter}
+            draft={result.coverLetterDraft}
+            reportId={result.id}
+          />
+        ),
+      },
       {
         id: "ats",
         label: "Machine readability",

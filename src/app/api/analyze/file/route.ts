@@ -41,6 +41,15 @@ function asDiscipline(value: unknown): DisciplineKey | null {
     : null;
 }
 
+/** A job posting or cover letter pasted in as text, capped well above what a real one needs. */
+const MAX_PASTED_TEXT = 20_000;
+
+function asPastedText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, MAX_PASTED_TEXT) : null;
+}
+
 export async function POST(request: Request) {
   let form: FormData;
   try {
@@ -82,6 +91,9 @@ export async function POST(request: Request) {
         checkLinks: form.get("checkLinks") === "true",
         // Opt-in: the draft is the author's own content and is stored with the report.
         rewrite: form.get("rewrite") === "true" && documentKind === "resume",
+        jobDescription: asPastedText(form.get("jobDescription")),
+        coverLetterText: asPastedText(form.get("coverLetterText")),
+        coverLetterDraft: form.get("coverLetterDraft") === "true" && documentKind === "resume",
       },
     );
 

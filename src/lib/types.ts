@@ -34,7 +34,10 @@ export type CategoryKey =
   // uploaded portfolio document
   | "work"
   | "presentation"
-  | "deliverability";
+  | "deliverability"
+  // resume add-ons, scored separately from the weighted breakdown
+  | "jobmatch"
+  | "coverletter";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 
@@ -494,6 +497,75 @@ export interface ResumeRewrite {
   stockPhrases: string[];
 }
 
+/* ------------------------------- cover letter ---------------------------------- */
+
+/**
+ * Review of a cover letter the author already wrote and pasted in.
+ *
+ * Same discipline as the resume's Writing tab — the cliché list is the literal same
+ * one — plus the handful of things specific to a cover letter: whether it is addressed
+ * to a person rather than "To Whom It May Concern", and whether it names the company
+ * or role it is meant to be for (a classic tell that a mail-merge left the placeholder
+ * in, or that the letter is a generic template never adjusted for this application).
+ */
+export interface CoverLetterReport {
+  score: number;
+  wordCount: number;
+  clicheHits: string[];
+  /** Addressed to a named person, not a generic "To Whom It May Concern". */
+  hasPersonalGreeting: boolean;
+  /** True when a company name was inferable from the pasted JD and appears in the letter. */
+  mentionsCompany: boolean | null;
+  /** True when the job title was inferable from the pasted JD and appears in the letter. */
+  mentionsRole: boolean | null;
+  hasClosingCTA: boolean;
+  checks: Check[];
+}
+
+/**
+ * A drafted cover letter. The number-fabrication guard from the resume rewrite does not
+ * transfer directly — a cover letter's risk is invented free-form CLAIMS ("five years
+ * leading teams"), not invented numbers, and verifying arbitrary prose against a source
+ * document is not something that can be done as mechanically as digit-matching. What
+ * *is* checked: every named skill or tool the draft uses is cross-referenced against
+ * the resume's own skill findings, and anything the draft mentions that the resume
+ * never evidenced is surfaced as an unverified claim rather than silently trusted.
+ */
+export interface CoverLetterDraft {
+  model: string;
+  generatedAt: string;
+  greeting: string;
+  paragraphs: string[];
+  closing: string;
+  /** Skills/tools named in the draft with no support in the resume's own findings. */
+  unverifiedSkills: string[];
+  notes: string[];
+}
+
+/* ------------------------------- job matching --------------------------------- */
+
+/**
+ * How a resume stacks up against one job description.
+ *
+ * Deliberately kept out of `overallScore`/`breakdown`. Matching a specific posting is a
+ * question about fit for *that* role, not about the resume's quality as an artifact —
+ * an excellent generalist resume can score low against a highly specialised posting
+ * with no defect in the resume at all. Folding that into the primary score would make
+ * the same resume's score swing on which JD happened to be pasted in. It gets its own
+ * score and its own tab instead, the same way the AI review sits outside the breakdown.
+ */
+export interface JobMatchReport {
+  /** Null when the pasted text yielded no recognisable skills to match against. */
+  score: number | null;
+  /** First line of the pasted text, shown back so the reader can confirm what was read. */
+  jobTitle: string | null;
+  matchedRequired: string[];
+  missingRequired: string[];
+  matchedPreferred: string[];
+  missingPreferred: string[];
+  checks: Check[];
+}
+
 export interface ResumeResult {
   kind: "resume";
   id: string;
@@ -515,6 +587,12 @@ export interface ResumeResult {
   ai: AiReview | null;
   /** An improved draft, when one was asked for and the model produced a usable one. */
   rewrite: ResumeRewrite | null;
+  /** Present only when a job description was pasted in alongside the resume. */
+  jobMatch: JobMatchReport | null;
+  /** Present only when a cover letter was pasted in, reviewed against this resume. */
+  coverLetter: CoverLetterReport | null;
+  /** A drafted cover letter, when one was asked for and the model produced a usable one. */
+  coverLetterDraft: CoverLetterDraft | null;
   warnings: string[];
 }
 
@@ -626,4 +704,10 @@ export interface AnalyzeFileOptions {
    * draft is the author's own content and is stored with the report.
    */
   rewrite?: boolean;
+  /** Pasted job posting text. Feeds both job matching and cover-letter generation. */
+  jobDescription?: string | null;
+  /** A cover letter the author already wrote, pasted in for review. */
+  coverLetterText?: string | null;
+  /** Draft a cover letter from the resume (and the job description, if given). */
+  coverLetterDraft?: boolean;
 }

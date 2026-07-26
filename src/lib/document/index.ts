@@ -4,6 +4,9 @@ import { isEmptyReview, reviewDocument } from "@/lib/ai/review";
 import { isEmptyRewrite, rewriteResume } from "@/lib/ai/rewrite";
 import { detectDiscipline } from "@/lib/discipline/detect";
 import { profileFor } from "@/lib/discipline/profiles";
+import { analyzeJobMatch, guessCompanyName, guessJobTitle } from "@/lib/jobmatch";
+import { draftCoverLetter, isEmptyCoverLetterDraft } from "@/lib/ai/coverletter";
+import { analyzeCoverLetter } from "./coverletter";
 import {
   composeVocabulary,
   matchSkills,
@@ -21,7 +24,10 @@ import { extractDocument, type ExtractedDocument, type UploadedFile } from "@/li
 import type {
   AiReview,
   AnalyzeFileOptions,
+  CoverLetterDraft,
+  CoverLetterReport,
   DocumentResult,
+  JobMatchReport,
   ResumeResult,
   ResumeRewrite,
   SkillsReport,
@@ -217,8 +223,46 @@ export async function analyzeUpload(
     });
 
     const overall = overallScore(breakdown);
+
+    /*
+     * Job matching. Kept out of overallScore/breakdown deliberately — see the type's
+     * own doc comment — so it is computed after the score, not folded into it.
+     */
+    let jobMatch: JobMatchReport | null = null;
+    const jobDescriptionText = (options.jobDescription ?? "").trim();
+    if (jobDescriptionText.length > 0) {
+      jobMatch = analyzeJobMatch({ jobDescriptionText, profile, resumeSkills: skills.skills });
+    }
+    // Reused by the cover letter below, so a JD only has to be parsed once.
+    const jobTitleGuess = jobDescriptionText ? guessJobTitle(jobDescriptionText) : null;
+    const companyNameGuess = jobDescriptionText ? guessCompanyName(jobDescriptionText) : null;
+
+    /*
+     * Cover letter review — deterministic, of a letter the author already wrote.
+     * Uses the same job-title/company guesses as job matching so pasting one JD lights
+     * up every feature that can use it.
+     */
+    let coverLetter: CoverLetterReport | null = null;
+    const coverLetterText = (options.coverLetterText ?? "").trim();
+    if (coverLetterText.length > 0) {
+      coverLetter = analyzeCoverLetter({
+        text: coverLetterText,
+        jobTitle: jobTitleGuess,
+        companyName: companyNameGuess,
+      });
+    }
+
     const suggestions = generateDocumentSuggestions(
-      [contact.checks, structure.checks, experience.checks, skills.checks, ats.checks, language.checks],
+      [
+        contact.checks,
+        structure.checks,
+        experience.checks,
+        skills.checks,
+        ats.checks,
+        language.checks,
+        jobMatch?.checks ?? [],
+        coverLetter?.checks ?? [],
+      ],
       profile,
     );
 
@@ -269,6 +313,43 @@ export async function analyzeUpload(
       }
     }
 
+    /*
+     * The cover letter draft. Same opt-in posture as the resume rewrite — it is the
+     * author's own content, stored with the report, costs a model call — plus its own,
+     * narrower guard: see coverletter.ts's module comment for exactly what it does and
+     * does not verify.
+     */
+    let coverLetterDraft: CoverLetterDraft | null = null;
+    if ((options.coverLetterDraft ?? false) && isAiConfigured()) {
+      try {
+        const draft = await draftCoverLetter({
+          document,
+          profile,
+          contact,
+          experience,
+          skills,
+          jobDescriptionText: jobDescriptionText || null,
+          companyName: companyNameGuess,
+          recipientName: null,
+        });
+        coverLetterDraft = isEmptyCoverLetterDraft(draft) ? null : draft;
+        if (!coverLetterDraft) {
+          warnings.push("The cover letter draft came back empty and was dropped.");
+        } else if (draft.unverifiedSkills.length > 0) {
+          warnings.push(
+            `The draft mentions ${draft.unverifiedSkills.length} skill${draft.unverifiedSkills.length === 1 ? "" : "s"} (${draft.unverifiedSkills.slice(0, 3).join(", ")}) that were not found among your resume's own skills — this is not exhaustive fact-checking, so read the letter and confirm these are genuinely yours.`,
+          );
+        }
+      } catch (error) {
+        const code = error instanceof AiError ? error.code : "network";
+        warnings.push(
+          AI_FAILURE_NOTE[code]?.replace("AI review", "cover letter draft") ??
+            "The cover letter draft was skipped: the model could not be reached.",
+        );
+        console.error("cover letter draft failed", error);
+      }
+    }
+
     return {
       result: {
         kind: "resume",
@@ -290,6 +371,9 @@ export async function analyzeUpload(
         suggestions,
         ai,
         rewrite,
+        jobMatch,
+        coverLetter,
+        coverLetterDraft,
         warnings,
       },
       detectedKind: classification.kind,

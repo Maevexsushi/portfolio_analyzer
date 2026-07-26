@@ -318,6 +318,78 @@ const RULES: Record<string, Rule> = {
     action:
       "A document circulates for years after you send it. These probably worked the day you exported it.",
   },
+
+  /* job match */
+  "jobmatch-required": {
+    category: "jobmatch",
+    severity: "critical",
+    impact: 10,
+    warnTitle: "Close the gap on a few required skills",
+    title: "Close the gap on required skills",
+    action:
+      "Only add what you genuinely have — if you have real experience with one of these under different wording, use the posting's exact term instead of your own.",
+  },
+  "jobmatch-preferred": {
+    category: "jobmatch",
+    severity: "polish",
+    impact: 3,
+    title: "Cover the preferred skills too",
+    action:
+      "These are not required, but naming them where they are genuinely true strengthens the match.",
+  },
+  "jobmatch-empty": {
+    category: "jobmatch",
+    severity: "important",
+    impact: 2,
+    title: "Paste the full job posting",
+    action: "A truncated paste cannot be matched against.",
+  },
+
+  /* cover letter */
+  "coverletter-length": {
+    category: "coverletter",
+    severity: "important",
+    impact: 4,
+    title: "Bring the length into range",
+    action: "Aim for 200-450 words — enough to say something specific, short enough to be read in full.",
+  },
+  "coverletter-greeting": {
+    category: "coverletter",
+    severity: "important",
+    impact: 4,
+    title: "Address it to a person",
+    action:
+      "Check the posting, the company site, or LinkedIn for the hiring manager's name before falling back to a generic greeting.",
+  },
+  "coverletter-cliches": {
+    category: "coverletter",
+    severity: "polish",
+    impact: 3,
+    warnTitle: "Cut a couple of stock phrases",
+    title: "Cut the stock phrases",
+    action: "Replace each with a specific detail from your own experience instead.",
+  },
+  "coverletter-closing": {
+    category: "coverletter",
+    severity: "polish",
+    impact: 2,
+    title: "Close with a next step",
+    action: "End by inviting an interview or a call rather than trailing off.",
+  },
+  "coverletter-role": {
+    category: "coverletter",
+    severity: "important",
+    impact: 3,
+    title: "Name the role you're applying for",
+    action: "Work the posting's own title into the letter so it reads as written for this application.",
+  },
+  "coverletter-company": {
+    category: "coverletter",
+    severity: "critical",
+    impact: 6,
+    title: "Name the company",
+    action: "A letter with no company name anywhere is the clearest sign of an unedited template.",
+  },
 };
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, important: 1, polish: 2 };

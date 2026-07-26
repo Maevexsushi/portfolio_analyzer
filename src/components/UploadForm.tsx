@@ -60,6 +60,9 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
   const [ai, setAi] = useState(true);
   const [checkLinks, setCheckLinks] = useState(false);
   const [rewrite, setRewrite] = useState(documentKind === "resume");
+  const [jobDescription, setJobDescription] = useState("");
+  const [coverLetterText, setCoverLetterText] = useState("");
+  const [coverLetterDraft, setCoverLetterDraft] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +101,9 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       body.set("ai", String(ai));
       body.set("checkLinks", String(checkLinks));
       body.set("rewrite", String(rewrite && documentKind === "resume"));
+      if (jobDescription.trim()) body.set("jobDescription", jobDescription.trim());
+      if (coverLetterText.trim()) body.set("coverLetterText", coverLetterText.trim());
+      body.set("coverLetterDraft", String(coverLetterDraft && ai && documentKind === "resume"));
 
       const response = await fetch("/api/analyze/file", { method: "POST", body });
       const data = (await response.json()) as {
@@ -212,6 +218,60 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
           </select>
         </label>
       </div>
+
+      {documentKind === "resume" && (
+        <div className="mt-4">
+          <label className="text-sm" htmlFor={`${inputId}-jd`}>
+            <span className="mb-1 block font-semibold text-muted">
+              Job posting <span className="font-normal">(optional)</span>
+            </span>
+          </label>
+          <textarea
+            id={`${inputId}-jd`}
+            value={jobDescription}
+            onChange={(event) => setJobDescription(event.target.value)}
+            disabled={pending}
+            rows={4}
+            placeholder="Paste the full job posting text here to check how your resume matches it — required and preferred skills, matched and missing."
+            className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 text-sm placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none"
+          />
+        </div>
+      )}
+
+      {documentKind === "resume" && (
+        <div className="mt-4">
+          <label className="text-sm" htmlFor={`${inputId}-cl`}>
+            <span className="mb-1 block font-semibold text-muted">
+              Cover letter <span className="font-normal">(optional)</span>
+            </span>
+          </label>
+          <textarea
+            id={`${inputId}-cl`}
+            value={coverLetterText}
+            onChange={(event) => setCoverLetterText(event.target.value)}
+            disabled={pending}
+            rows={4}
+            placeholder="Paste a cover letter you already wrote to get it reviewed — length, greeting, clichés, and whether it names the role and company."
+            className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 text-sm placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none"
+          />
+          <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={coverLetterDraft}
+              onChange={(event) => setCoverLetterDraft(event.target.checked)}
+              disabled={pending || !ai}
+              className="h-4 w-4 rounded border-line-strong accent-brand"
+            />
+            Draft a cover letter for me instead
+          </label>
+          {coverLetterDraft && ai && (
+            <p className="mt-1 text-xs text-muted">
+              Written only from what your resume actually says — pasting the job posting above
+              lets it connect your real experience to this specific role.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
         <label className="flex items-center gap-2 text-sm text-ink-soft">
