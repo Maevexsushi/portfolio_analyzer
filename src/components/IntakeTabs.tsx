@@ -5,18 +5,46 @@ import { UploadForm } from "./UploadForm";
 import { UrlForm } from "./UrlForm";
 
 /**
- * The two ways in.
+ * The three ways in.
  *
- * A portfolio is a website for some fields and a PDF for most others, and neither is
- * the fallback for the other — so both tabs are equal, with no "advanced" framing on
- * the upload. The order puts the URL first only because it is the cheaper thing to try.
+ * A resume and a portfolio are different documents judged by almost disjoint sets of
+ * checks — one is asked whether a parser can read it and whether the bullets carry
+ * numbers, the other whether the work is explained and whether the file can be emailed.
+ * Putting both behind a single "File" tab meant the tool had to guess which it was
+ * holding, and a wrong guess produces a confidently wrong report: a photographer's deck
+ * told to add quantified bullet points.
+ *
+ * So the choice moves to the person who already knows the answer. Each tab pins the
+ * document kind, and nothing arriving through this page is classified by inference.
+ * Detection still runs, but only to disagree out loud — see the mismatch warning in
+ * `analyzeUpload`.
  */
 
-type Tab = "url" | "file";
+type Tab = "url" | "resume" | "portfolio";
 
-const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: "url", label: "Website", hint: "yourname.dev, a Notion page, a Behance profile" },
-  { id: "file", label: "File", hint: "resume or portfolio — PDF, DOCX, or an image" },
+const TABS: {
+  id: Tab;
+  label: string;
+  hint: string;
+  documentKind?: "resume" | "document";
+}[] = [
+  {
+    id: "url",
+    label: "Website",
+    hint: "yourname.dev, a Notion page, a Behance profile",
+  },
+  {
+    id: "resume",
+    label: "Resume",
+    hint: "your CV as you send it — PDF, DOCX, or a photo of one",
+    documentKind: "resume",
+  },
+  {
+    id: "portfolio",
+    label: "Portfolio file",
+    hint: "the deck or PDF of your work — not your CV",
+    documentKind: "document",
+  },
 ];
 
 export function IntakeTabs() {
@@ -57,7 +85,14 @@ export function IntakeTabs() {
             {tab === entry.id && (
               <>
                 <p className="mb-3 text-sm text-muted">{entry.hint}</p>
-                {entry.id === "url" ? <UrlForm autoFocus /> : <UploadForm />}
+                {entry.documentKind ? (
+                  // Remounting per tab is deliberate: switching from Resume to
+                  // Portfolio file should not carry the previously chosen file over
+                  // into a form that will now score it against different checks.
+                  <UploadForm key={entry.id} documentKind={entry.documentKind} />
+                ) : (
+                  <UrlForm autoFocus />
+                )}
               </>
             )}
           </div>

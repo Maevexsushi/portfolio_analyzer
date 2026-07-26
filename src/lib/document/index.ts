@@ -148,9 +148,27 @@ export async function analyzeUpload(
   const classification = classifyDocument(document);
   const kind: DocumentKind = options.documentKind ?? classification.kind;
 
-  if (!options.documentKind && classification.confidence < 45) {
+  const named = (k: DocumentKind) => (k === "resume" ? "a resume" : "a portfolio document");
+
+  /*
+   * Two different uncertainties, and they deserve different words.
+   *
+   * When nobody said what the file was, the classifier's own doubt is the story. When
+   * someone did say — which is every upload from the site, since each tab pins a kind —
+   * the classifier is no longer deciding anything. It stays useful only as a second
+   * opinion: if it confidently reads the file as the other kind, that is worth saying,
+   * because the two are scored against almost disjoint checks and the person is better
+   * placed than the heuristic to settle it. The declared kind is still honoured.
+   */
+  if (!options.documentKind) {
+    if (classification.confidence < 45) {
+      warnings.push(
+        `This was read as ${named(kind)}, but not confidently (${classification.confidence}%). If that is wrong, switch it — the two are scored against completely different expectations.`,
+      );
+    }
+  } else if (classification.kind !== options.documentKind && classification.confidence >= 60) {
     warnings.push(
-      `This was read as ${kind === "resume" ? "a resume" : "a portfolio document"}, but not confidently (${classification.confidence}%). If that is wrong, switch it — the two are scored against completely different expectations.`,
+      `You uploaded this as ${named(options.documentKind)} and it has been scored as one, but it reads more like ${named(classification.kind)} (${classification.confidence}% — ${classification.reasons.join(", ")}). If you picked the wrong tab, the checks below are aimed at the wrong target.`,
     );
   }
 

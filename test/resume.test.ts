@@ -7,6 +7,7 @@ import { analyzeExperience } from "@/lib/document/experience";
 import { analyzeLanguage } from "@/lib/document/language";
 import { analyzeResumeStructure } from "@/lib/document/sections";
 import { classifyDocument } from "@/lib/document/classify";
+import { analyzeUpload } from "@/lib/document";
 import { STRONG_RESUME, makeDocx, makePdf, makeTextPdf } from "./doc-helpers";
 import type { ExtractedDocument } from "@/lib/intake";
 
@@ -320,5 +321,50 @@ describe("document classification", () => {
   it("classifies by text when the file is a single page", async () => {
     const document = await fromText(STRONG_RESUME);
     expect(classifyDocument(document).kind).toBe("resume");
+  });
+});
+
+/*
+ * Every upload from the site now declares its kind, because each tab pins one. The
+ * classifier is no longer routing anything — it is a second opinion, and the only thing
+ * it can still do is disagree out loud. These cases pin that it disagrees when it should
+ * and stays quiet when it should, because a false alarm on every resume would train
+ * people to ignore the one warning that matters.
+ */
+describe("declared kind versus what the file looks like", () => {
+  const DECK = Array.from({ length: 12 }, (_, index) => ({
+    lines: [`Case study ${index + 1}`, "Brand identity work for a regional roaster"],
+  }));
+
+  it("honours the declared kind and says nothing when the two agree", async () => {
+    const analysis = await analyzeUpload(
+      { fileName: "ada.pdf", bytes: await makeTextPdf(STRONG_RESUME) },
+      { documentKind: "resume", aiReview: false },
+    );
+
+    expect(analysis.result.kind).toBe("resume");
+    expect(analysis.result.warnings.join(" ")).not.toContain("reads more like");
+  });
+
+  it("still scores as declared, but flags a confident disagreement", async () => {
+    const analysis = await analyzeUpload(
+      { fileName: "priya.pdf", bytes: await makePdf(DECK) },
+      { documentKind: "resume", aiReview: false },
+    );
+
+    // Scored the way the user asked, not the way the heuristic guessed.
+    expect(analysis.result.kind).toBe("resume");
+    expect(analysis.result.warnings.join(" ")).toContain("reads more like a portfolio document");
+    expect(analysis.detectedKind).toBe("document");
+  });
+
+  it("does not second-guess a portfolio uploaded as a portfolio", async () => {
+    const analysis = await analyzeUpload(
+      { fileName: "priya.pdf", bytes: await makePdf(DECK) },
+      { documentKind: "document", aiReview: false },
+    );
+
+    expect(analysis.result.kind).toBe("document");
+    expect(analysis.result.warnings.join(" ")).not.toContain("reads more like");
   });
 });

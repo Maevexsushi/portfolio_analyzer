@@ -6,13 +6,14 @@ fix. Exports the whole thing as a PDF.
 
 Built for job applicants checking their own material before they send it.
 
-Three things can be analyzed, each scored against its own set of checks:
+Three things can be analyzed, and they are three separate tabs — not one upload box that
+guesses. Each is scored against its own set of checks:
 
-| Input | What it is | What it is judged on |
+| Tab | What it is | What it is judged on |
 | --- | --- | --- |
-| **A URL** | a portfolio site | sections, projects, skills, links, design, performance |
-| **A resume** | PDF, DOCX, or an image | machine readability, experience & impact, structure, contact, skills, writing |
-| **A portfolio document** | the deck you actually send | the work, presentation, deliverability, contact, skills |
+| **Website** | a portfolio site | sections, projects, skills, links, design, performance |
+| **Resume** | your CV — PDF, DOCX, or an image | machine readability, experience & impact, structure, contact, skills, writing |
+| **Portfolio file** | the deck you actually send | the work, presentation, deliverability, contact, skills |
 
 And it is not a developer tool. The analyzer detects the applicant's field — design,
 writing, healthcare, trades, marketing, education, and others — and judges the work
@@ -162,9 +163,11 @@ requests to your own site.
 - **Field detection can be wrong.** It reads vocabulary, so a career changer or a hybrid
   role can land in the wrong profile. The report shows its evidence and its confidence,
   and the field can be overridden on the upload form.
-- **Resume/portfolio classification can be wrong.** The two are scored against almost
-  disjoint checks, so a misread produces a confidently wrong report. Detection confidence
-  is shown, a low one adds a caveat, and the choice can be forced.
+- **Resume/portfolio classification is no longer a routing decision.** Each tab pins the
+  kind, so a misread cannot silently send your CV through the portfolio checks. The
+  classifier only warns when it confidently disagrees with the tab you chose. The
+  inference path still exists for API callers that omit `documentKind`, and there it
+  carries the old caveat.
 - **ATS claims are bounded.** There are hundreds of applicant tracking products and they
   differ. What is asserted is only what follows from the extracted text itself — if the
   text is not there, no parser can read it. Beyond that it does not guess.
@@ -193,6 +196,19 @@ requests to your own site.
 
 Not every portfolio is a website, and treating a PDF as a lesser input would exclude most
 of the fields above. Upload is a first-class path with its own checks.
+
+**Resume and portfolio are separate tabs.** They are judged by almost disjoint checks —
+one is asked whether a parser can read it and whether the bullets carry numbers, the
+other whether the work is explained and whether the file can be emailed. Behind a single
+"File" tab the tool had to infer which it was holding, and a wrong inference produces a
+confidently wrong report: a photographer's deck told to add quantified bullet points.
+
+So the tab settles it. Nothing uploaded through the site is classified by inference, and
+the report is always scored the way the person asked. The classifier still runs, but its
+only remaining job is to disagree out loud: if you upload through **Resume** and the file
+reads like a portfolio at 60%+ confidence, the report says so at the top and names the
+evidence, while still scoring it as a resume. The person knows better than the heuristic;
+they just need telling when the two diverge.
 
 **Formats.** PDF, DOCX, and images (PNG/JPG/WEBP), decided by sniffing the file header —
 never the extension or the browser's declared MIME type, both of which are routinely
@@ -284,6 +300,10 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
 - **Resume accuracy** — a date range is not read as a phone number, a job title is not
   read as a name, a referee's number on page two is not read as yours, bullets without
   glyphs still count, and ordering is left unjudged when there is too little to go on.
+- **Declared kind wins** — a portfolio deck uploaded through the Resume tab is still
+  scored as a resume, and still warned about; a resume uploaded as a resume gets no
+  warning at all, because a false alarm on every upload trains people to ignore the one
+  that matters.
 - **Fields** — seven disciplines detected from their own vocabulary (including a brand
   designer, which an earlier UX-only signal list missed); thin evidence falls back to
   general; a repeated word does not outweigh a field's real vocabulary; and the same page

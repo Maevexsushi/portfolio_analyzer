@@ -12,11 +12,11 @@ const CHECKS = [
   },
   {
     title: "Resume analyzer",
-    body: "Upload a CV and get it checked for impact, structure, and the thing you cannot test yourself: whether an applicant tracking system can read it at all.",
+    body: "Its own tab, its own checks. Impact and structure, plus the thing you cannot test yourself: whether an applicant tracking system can read your CV at all.",
   },
   {
-    title: "PDF portfolios",
-    body: "Not every portfolio is a website. Upload the deck you actually send and get the same review — plus whether it will survive an employer's mail server.",
+    title: "Portfolio files",
+    body: "Not every portfolio is a website. Upload the deck you actually send and get a review of the work — plus whether the file will survive an employer's mail server.",
   },
   {
     title: "Portfolio score",
@@ -51,9 +51,9 @@ export default async function HomePage() {
           Find out what a hiring reviewer sees in your portfolio.
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-ink-soft">
-          Paste a URL or upload your resume or portfolio file. You get a scored report on what is
-          missing, how deep the work reads, and what to fix first — judged against your field,
-          whatever that field is.
+          Pick what you are checking — a website, your resume, or a portfolio file — and get a
+          scored report on what is missing, how deep the work reads, and what to fix first. Each
+          one is judged against its own standards, and against your field, whatever that field is.
         </p>
 
         <div className="mt-8 max-w-2xl">

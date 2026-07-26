@@ -6,27 +6,40 @@ import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
 import type { DisciplineKey } from "@/lib/types";
 
 /**
- * File upload.
+ * File upload, for one declared kind of document.
  *
- * Two things here are deliberate. The document kind and the field are both offered up
- * front as "auto", not as a required choice — asking someone to classify their own
- * document before the tool has looked at it is friction for the majority whose file is
- * exactly what it appears to be. And when detection turns out to be unsure, the report
- * says so and links back, rather than the form demanding certainty in advance.
+ * The kind is a prop rather than a control, because the tab the user picked already
+ * answered it. Asking again inside the form would reopen a question they have settled
+ * and imply the tool might overrule them.
  *
- * The other is the OCR warning. An image upload is accepted because refusing it would
- * exclude people, but it is the worst thing to send an employer, and the form says that
- * before the upload rather than after.
+ * The field, by contrast, stays optional: nobody should have to classify their own
+ * profession before a tool will look at their file, and detection is good enough that
+ * the dropdown is a correction rather than a prerequisite.
+ *
+ * The OCR warning is shown before the upload, not after. An image is accepted because
+ * refusing it would exclude people, but it is the worst thing to send an employer and
+ * that is worth knowing while there is still time to export a PDF instead.
  */
 
 const ACCEPT = ".pdf,.docx,.png,.jpg,.jpeg,.webp";
 const MAX_MB = 15;
 
-const KIND_OPTIONS = [
-  { value: "", label: "Detect automatically" },
-  { value: "resume", label: "Resume / CV" },
-  { value: "document", label: "Portfolio document" },
-] as const;
+type DocumentKind = "resume" | "document";
+
+const COPY: Record<DocumentKind, { noun: string; cta: string; imageNote: string }> = {
+  resume: {
+    noun: "resume",
+    cta: "Analyze my resume",
+    imageNote:
+      "A photo or screenshot of a resume is the weakest thing you can send an employer: applicant tracking systems store it as an empty record, so keyword searches never return it. It will be read here with OCR, but export a PDF for anything you actually submit.",
+  },
+  document: {
+    noun: "portfolio file",
+    cta: "Analyze my portfolio",
+    imageNote:
+      "A single image can only ever be one page of a portfolio, and nothing in it is searchable or clickable. It will be read here with OCR, but a PDF is what you should be sending.",
+  },
+};
 
 function formatSize(bytes: number): string {
   return bytes < 1024 * 1024
@@ -34,12 +47,14 @@ function formatSize(bytes: number): string {
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function UploadForm() {
+export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const copy = COPY[documentKind];
+  // Both forms exist in the tab markup, so the file input needs a distinct id per kind.
+  const inputId = `upload-${documentKind}`;
 
   const [file, setFile] = useState<File | null>(null);
-  const [documentKind, setDocumentKind] = useState<string>("");
   const [discipline, setDiscipline] = useState<string>("");
   const [ai, setAi] = useState(true);
   const [checkLinks, setCheckLinks] = useState(false);
@@ -75,7 +90,8 @@ export function UploadForm() {
     try {
       const body = new FormData();
       body.set("file", file);
-      if (documentKind) body.set("documentKind", documentKind);
+      // Always sent, never inferred: the tab already settled what this document is.
+      body.set("documentKind", documentKind);
       if (discipline) body.set("discipline", discipline);
       body.set("ai", String(ai));
       body.set("checkLinks", String(checkLinks));
@@ -118,7 +134,7 @@ export function UploadForm() {
           type="file"
           accept={ACCEPT}
           className="sr-only"
-          id="portfolio-file"
+          id={inputId}
           disabled={pending}
           onChange={(event) => choose(event.target.files?.[0] ?? null)}
         />
@@ -142,7 +158,7 @@ export function UploadForm() {
         ) : (
           <div>
             <label
-              htmlFor="portfolio-file"
+              htmlFor={inputId}
               className="cursor-pointer font-medium text-brand-ink hover:underline"
             >
               Choose a file
@@ -164,30 +180,11 @@ export function UploadForm() {
 
       {isImage && !tooBig && (
         <p className="mt-3 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm">
-          Images are read with OCR, so some words will come out wrong. Worth knowing either way:
-          an image is the weakest thing to send an employer — nothing in it is searchable, and
-          applicant tracking systems record it as an empty document. If you have a PDF, upload
-          that instead.
+          {copy.imageNote}
         </p>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">
-          <span className="mb-1 block text-muted">What is this?</span>
-          <select
-            value={documentKind}
-            onChange={(event) => setDocumentKind(event.target.value)}
-            disabled={pending}
-            className="w-full rounded-lg border border-line bg-surface px-3 py-2"
-          >
-            {KIND_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
+      <div className="mt-4 max-w-sm">
         <label className="text-sm">
           <span className="mb-1 block text-muted">Your field</span>
           <select
@@ -234,11 +231,11 @@ export function UploadForm() {
         disabled={!file || pending || tooBig}
         className="mt-4 w-full rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
-        {pending ? (isImage ? "Reading the image…" : "Analyzing…") : "Analyze this file"}
+        {pending ? (isImage ? "Reading the image…" : "Analyzing…") : copy.cta}
       </button>
 
       <p className="mt-3 text-xs text-muted">
-        The file itself is never saved — it is read in memory and discarded. Only the report is
+        Your {copy.noun} is never saved — it is read in memory and discarded. Only the report is
         stored.
       </p>
 
