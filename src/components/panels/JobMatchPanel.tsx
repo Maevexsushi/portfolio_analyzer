@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { CheckList } from "@/components/viz";
@@ -46,8 +47,12 @@ export function JobMatchPanel({ report }: { report: JobMatchReport | null }) {
         description="How this resume stacks up against a specific posting — the same named-skill match every ATS keyword checker runs, shown with the evidence rather than just a percentage."
       >
         <EmptyNote>
-          Paste a job posting when you upload a resume, and this tab compares your named skills
-          against what it asks for.
+          No job posting was pasted in with this resume. Run it again from the{" "}
+          <Link href="/job-match" className="font-semibold text-brand-ink hover:underline">
+            Job match page
+          </Link>{" "}
+          with a posting pasted in, and this tab will compare your named skills against what it
+          asks for.
         </EmptyNote>
       </Panel>
     );

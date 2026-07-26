@@ -353,6 +353,7 @@ export async function analyzeUpload(
     return {
       result: {
         kind: "resume",
+        focus: options.focus === "jobmatch" ? "jobmatch" : "full",
         id: randomUUID(),
         analyzedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,

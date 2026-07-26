@@ -94,6 +94,7 @@ export async function POST(request: Request) {
         jobDescription: asPastedText(form.get("jobDescription")),
         coverLetterText: asPastedText(form.get("coverLetterText")),
         coverLetterDraft: form.get("coverLetterDraft") === "true" && documentKind === "resume",
+        focus: form.get("focus") === "jobmatch" ? "jobmatch" : "full",
       },
     );
 

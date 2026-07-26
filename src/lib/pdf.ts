@@ -756,8 +756,13 @@ export async function buildCoverLetterPdf(
 export async function buildReportPdf(result: AnyResult): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const subject = result.kind === "website" ? result.finalUrl : result.upload.fileName;
-  doc.setTitle(`Analysis — ${subject}`);
-  doc.setSubject(`Score ${result.overallScore}/100 (${result.grade})`);
+  const isJobMatchFocus = result.kind === "resume" && result.focus === "jobmatch";
+  doc.setTitle(isJobMatchFocus ? `Job match — ${subject}` : `Analysis — ${subject}`);
+  doc.setSubject(
+    isJobMatchFocus && result.kind === "resume"
+      ? `Job match ${result.jobMatch?.score ?? "n/a"}/100`
+      : `Score ${result.overallScore}/100 (${result.grade})`,
+  );
   doc.setCreator("Portfolio Analyzer");
 
   const fonts: Fonts = {
@@ -782,7 +787,99 @@ export async function buildReportPdf(result: AnyResult): Promise<Uint8Array> {
   return doc.save();
 }
 
+/**
+ * The Job Match page's own PDF — the counterpart to writeResumeReport's full breakdown.
+ * Someone downloading a PDF from that page came to ask one question and does not need
+ * the writing tab or the ATS score alongside the answer, so this skips writePreamble's
+ * hero score, weighted breakdown, and AI review entirely and goes straight to the two
+ * things that page is for.
+ */
+function writeJobMatchReport(
+  report: ReportBuilder,
+  result: Extract<AnyResult, { kind: "resume" }>,
+) {
+  report.text("Job match report", { size: 20, bold: true });
+  report.gap(4);
+  report.text(result.upload.fileName, { size: 10, color: MARK.seq });
+  report.text(
+    `${result.upload.format.toUpperCase()}${
+      result.upload.pageCount ? `, ${result.upload.pageCount} pages` : ""
+    } · analyzed ${formatDateTime(result.analyzedAt)} in ${formatMs(result.durationMs)}`,
+    { size: 9, color: MUTED },
+  );
+  report.gap(10);
+
+  const jobMatch = result.jobMatch;
+  report.heading("Job match", jobMatch?.score ?? undefined);
+  if (!jobMatch) {
+    report.text("No job posting was pasted in with this resume.", { size: 9.5, color: INK_SOFT });
+  } else {
+    if (jobMatch.jobTitle) {
+      report.text(`Matched against: "${jobMatch.jobTitle}"`, { size: 9.5, color: INK_SOFT });
+      report.gap(4);
+    }
+    if (jobMatch.matchedRequired.length + jobMatch.missingRequired.length > 0) {
+      report.text("Required skills", { size: 9, bold: true });
+      report.gap(2);
+      report.chips(jobMatch.matchedRequired, true);
+      if (jobMatch.missingRequired.length > 0) {
+        report.text(`Missing: ${jobMatch.missingRequired.join(", ")}`, {
+          size: 8.5,
+          color: MARK.bad,
+        });
+        report.gap(4);
+      }
+    }
+    for (const check of jobMatch.checks) report.checkRow(check);
+  }
+
+  const { coverLetter, coverLetterDraft } = result;
+  if (coverLetter) {
+    report.heading("Cover letter review", coverLetter.score);
+    for (const check of coverLetter.checks) report.checkRow(check);
+  }
+  if (coverLetterDraft) {
+    report.heading("Drafted cover letter");
+    if (coverLetterDraft.unverifiedSkills.length > 0) {
+      report.text(
+        `Not evidenced in the resume: ${coverLetterDraft.unverifiedSkills.join(", ")}. Confirm these before sending it.`,
+        { size: 8.5, color: MARK.warn },
+      );
+      report.gap(4);
+    }
+    report.text(coverLetterDraft.greeting, { size: 9.5, color: INK });
+    report.gap(6);
+    for (const paragraph of coverLetterDraft.paragraphs) {
+      report.text(paragraph, { size: 9.5, color: INK });
+      report.gap(6);
+    }
+    report.text(coverLetterDraft.closing, { size: 9.5, color: INK });
+    report.gap(4);
+    report.text(`Drafted by ${coverLetterDraft.model}.`, { size: 8, color: MUTED });
+  }
+  if (!coverLetter && !coverLetterDraft) {
+    report.heading("Cover letter");
+    report.text("No cover letter was reviewed or drafted for this run.", {
+      size: 9.5,
+      color: INK_SOFT,
+    });
+  }
+
+  if (result.warnings.length > 0) {
+    report.heading("Caveats");
+    for (const warning of result.warnings) {
+      report.text(`- ${warning}`, { size: 9, color: INK_SOFT });
+      report.gap(2);
+    }
+  }
+}
+
 function writeResumeReport(report: ReportBuilder, result: Extract<AnyResult, { kind: "resume" }>) {
+  if (result.focus === "jobmatch") {
+    writeJobMatchReport(report, result);
+    return;
+  }
+
   writePreamble(
     report,
     result,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { CheckList } from "@/components/viz";
@@ -132,8 +133,12 @@ export function CoverLetterPanel({
         description="Paste a cover letter you already wrote to have it reviewed, or ask for one to be drafted from your resume."
       >
         <EmptyNote>
-          No cover letter on this report. Tick &ldquo;Draft a cover letter for me&rdquo;, or paste
-          one you wrote, when you upload a resume.
+          No cover letter on this report. Run this resume again from the{" "}
+          <Link href="/job-match" className="font-semibold text-brand-ink hover:underline">
+            Job match page
+          </Link>{" "}
+          and tick &ldquo;Draft a cover letter for me&rdquo;, or paste one you wrote, to see it
+          here.
         </EmptyNote>
       </Panel>
     );

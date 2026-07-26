@@ -568,6 +568,8 @@ export interface JobMatchReport {
 
 export interface ResumeResult {
   kind: "resume";
+  /** "jobmatch" reports came from the dedicated Job Match page — see AnalyzeFileOptions. */
+  focus: "full" | "jobmatch";
   id: string;
   analyzedAt: string;
   durationMs: number;
@@ -710,4 +712,10 @@ export interface AnalyzeFileOptions {
   coverLetterText?: string | null;
   /** Draft a cover letter from the resume (and the job description, if given). */
   coverLetterDraft?: boolean;
+  /**
+   * Which result view this run is for. "jobmatch" comes from the dedicated Job Match
+   * page and renders only the job-match and cover-letter tabs — the reader came to ask
+   * one specific question, not for a full resume review. Defaults to "full".
+   */
+  focus?: "full" | "jobmatch";
 }

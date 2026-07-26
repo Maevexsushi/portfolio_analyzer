@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { ScoreOverview } from "@/components/ScoreOverview";
+import { JobMatchOverview } from "@/components/JobMatchOverview";
 import { ReanalyzeButton } from "@/components/ReanalyzeButton";
 import { ReportTabs, type ReportTab } from "@/components/ReportTabs";
 import { AiReviewPanel } from "@/components/panels/AiReviewPanel";
@@ -137,6 +138,33 @@ function tabsFor(result: AnyResult): ReportTab[] {
         content: <PerformancePanel report={result.performance} />,
       },
       basis,
+    ];
+  }
+
+  if (result.kind === "resume" && result.focus === "jobmatch") {
+    // A Job Match run answers one question — the reader did not come for a full resume
+    // review, so this skips straight to the two tabs that run was for.
+    return [
+      {
+        id: "jobmatch",
+        label: "Job match",
+        score: result.jobMatch?.score ?? undefined,
+        ...(result.jobMatch ? countIssues(result.jobMatch.checks) : {}),
+        content: <JobMatchPanel report={result.jobMatch} />,
+      },
+      {
+        id: "coverletter",
+        label: "Cover letter",
+        score: result.coverLetter?.score ?? undefined,
+        ...(result.coverLetter ? countIssues(result.coverLetter.checks) : {}),
+        content: (
+          <CoverLetterPanel
+            report={result.coverLetter}
+            draft={result.coverLetterDraft}
+            reportId={result.id}
+          />
+        ),
+      },
     ];
   }
 
@@ -287,6 +315,9 @@ export async function generateMetadata({
 
   const subject =
     result.kind === "website" ? shortenUrl(result.finalUrl, 40) : result.upload.fileName;
+  if (result.kind === "resume" && result.focus === "jobmatch") {
+    return { title: `Job match — ${subject} — Profiled` };
+  }
   return { title: `${result.overallScore}/100 — ${subject} — Profiled` };
 }
 
@@ -359,7 +390,11 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       )}
 
       <div className="mt-6">
-        <ScoreOverview result={result} trend={trend} />
+        {result.kind === "resume" && result.focus === "jobmatch" ? (
+          <JobMatchOverview result={result} />
+        ) : (
+          <ScoreOverview result={result} trend={trend} />
+        )}
       </div>
 
       <div className="mt-6">

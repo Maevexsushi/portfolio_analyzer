@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, UploadCloud } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
@@ -48,7 +49,14 @@ function formatSize(bytes: number): string {
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
+export function UploadForm({
+  documentKind,
+  jobMatchMode = false,
+}: {
+  documentKind: DocumentKind;
+  /** Shows the job posting and cover letter fields instead of the resume-rewrite option. */
+  jobMatchMode?: boolean;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const copy = COPY[documentKind];
@@ -59,7 +67,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
   const [discipline, setDiscipline] = useState<string>("");
   const [ai, setAi] = useState(true);
   const [checkLinks, setCheckLinks] = useState(false);
-  const [rewrite, setRewrite] = useState(documentKind === "resume");
+  const [rewrite, setRewrite] = useState(documentKind === "resume" && !jobMatchMode);
   const [jobDescription, setJobDescription] = useState("");
   const [coverLetterText, setCoverLetterText] = useState("");
   const [coverLetterDraft, setCoverLetterDraft] = useState(false);
@@ -98,12 +106,15 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       // Always sent, never inferred: the tab already settled what this document is.
       body.set("documentKind", documentKind);
       if (discipline) body.set("discipline", discipline);
-      body.set("ai", String(ai));
+      // The "Your edge" AI review has no tab to appear in on the Job Match page, so
+      // there is no reason to spend the model call generating it there.
+      body.set("ai", String(ai && !jobMatchMode));
       body.set("checkLinks", String(checkLinks));
-      body.set("rewrite", String(rewrite && documentKind === "resume"));
+      body.set("rewrite", String(rewrite && documentKind === "resume" && !jobMatchMode));
       if (jobDescription.trim()) body.set("jobDescription", jobDescription.trim());
       if (coverLetterText.trim()) body.set("coverLetterText", coverLetterText.trim());
-      body.set("coverLetterDraft", String(coverLetterDraft && ai && documentKind === "resume"));
+      body.set("coverLetterDraft", String(coverLetterDraft && documentKind === "resume"));
+      if (jobMatchMode) body.set("focus", "jobmatch");
 
       const response = await fetch("/api/analyze/file", { method: "POST", body });
       const data = (await response.json()) as {
@@ -219,7 +230,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
         </label>
       </div>
 
-      {documentKind === "resume" && (
+      {documentKind === "resume" && jobMatchMode && (
         <div className="mt-4">
           <label className="text-sm" htmlFor={`${inputId}-jd`}>
             <span className="mb-1 block font-semibold text-muted">
@@ -238,7 +249,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
         </div>
       )}
 
-      {documentKind === "resume" && (
+      {documentKind === "resume" && jobMatchMode && (
         <div className="mt-4">
           <label className="text-sm" htmlFor={`${inputId}-cl`}>
             <span className="mb-1 block font-semibold text-muted">
@@ -259,12 +270,12 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
               type="checkbox"
               checked={coverLetterDraft}
               onChange={(event) => setCoverLetterDraft(event.target.checked)}
-              disabled={pending || !ai}
+              disabled={pending}
               className="h-4 w-4 rounded border-line-strong accent-brand"
             />
             Draft a cover letter for me instead
           </label>
-          {coverLetterDraft && ai && (
+          {coverLetterDraft && (
             <p className="mt-1 text-xs text-muted">
               Written only from what your resume actually says — pasting the job posting above
               lets it connect your real experience to this specific role.
@@ -274,28 +285,32 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <label className="flex items-center gap-2 text-sm text-ink-soft">
-          <input
-            type="checkbox"
-            checked={ai}
-            onChange={(event) => setAi(event.target.checked)}
-            disabled={pending}
-            className="h-4 w-4 rounded border-line-strong accent-brand"
-          />
-          AI read of your work (sends the file&apos;s text to Groq)
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-soft">
-          <input
-            type="checkbox"
-            checked={checkLinks}
-            onChange={(event) => setCheckLinks(event.target.checked)}
-            disabled={pending}
-            className="h-4 w-4 rounded border-line-strong accent-brand"
-          />
-          Check the links inside it (slower)
-        </label>
+        {!jobMatchMode && (
+          <label className="flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={ai}
+              onChange={(event) => setAi(event.target.checked)}
+              disabled={pending}
+              className="h-4 w-4 rounded border-line-strong accent-brand"
+            />
+            AI read of your work (sends the file&apos;s text to Groq)
+          </label>
+        )}
+        {!jobMatchMode && (
+          <label className="flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={checkLinks}
+              onChange={(event) => setCheckLinks(event.target.checked)}
+              disabled={pending}
+              className="h-4 w-4 rounded border-line-strong accent-brand"
+            />
+            Check the links inside it (slower)
+          </label>
+        )}
 
-        {documentKind === "resume" && (
+        {documentKind === "resume" && !jobMatchMode && (
           <label className="flex items-center gap-2 text-sm text-ink-soft">
             <input
               type="checkbox"
@@ -309,11 +324,22 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
         )}
       </div>
 
-      {documentKind === "resume" && rewrite && ai && (
+      {documentKind === "resume" && !jobMatchMode && rewrite && ai && (
         <p className="mt-2 text-xs text-muted">
           The draft rewrites what your resume already says and marks every missing fact as a gap
           for you to fill — it will not invent numbers. Unlike the file itself, the draft is
           stored with the report, and is deleted with it.
+        </p>
+      )}
+
+      {documentKind === "resume" && !jobMatchMode && (
+        <p className="mt-2 text-xs text-muted">
+          Want to check this resume against a job posting, or get a cover letter reviewed or
+          drafted?{" "}
+          <Link href="/job-match" className="font-semibold text-brand-ink hover:underline">
+            Use the Job Match page
+          </Link>
+          .
         </p>
       )}
 
