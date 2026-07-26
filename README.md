@@ -51,6 +51,7 @@ npm run dev                  # http://localhost:3000
 | AI review ("Your edge") | [src/lib/ai/review.ts](src/lib/ai/review.ts), [src/lib/ai/groq.ts](src/lib/ai/groq.ts) |
 | AI resume rewrite | [src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts), [src/components/panels/RewritePanel.tsx](src/components/panels/RewritePanel.tsx) |
 | Job Match page + engine | [src/app/job-match/](src/app/job-match/), [src/lib/jobmatch/](src/lib/jobmatch/) |
+| Skill-gap notes (AI) | [src/lib/ai/skillgap.ts](src/lib/ai/skillgap.ts) |
 | Cover letter analyzer + AI generator | [src/lib/document/coverletter.ts](src/lib/document/coverletter.ts), [src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts) |
 | Resume comparison | [src/lib/compare.ts](src/lib/compare.ts), [src/app/compare/page.tsx](src/app/compare/page.tsx) |
 | PDF report export | [src/lib/pdf.ts](src/lib/pdf.ts) |
@@ -171,12 +172,22 @@ Set a key and it runs on every analysis:
 ```bash
 # .env.local — gitignored
 GROQ_API_KEY=gsk_...          # https://console.groq.com/keys
+GROQ_API_KEY2=gsk_...            # optional backup key, see below
 GROQ_MODEL=openai/gpt-oss-120b   # optional; any Groq text model
 AI_TIMEOUT_MS=20000              # optional
 ```
 
 Groq speaks the OpenAI chat-completions dialect, so there is no SDK — one `fetch` against
 one endpoint is the whole client. Adds roughly a second to an analysis.
+
+**A second key is optional and used only as a fallback.** Every AI feature — the review,
+the resume rewrite, cover letter drafting, skill-gap notes — goes through one transport
+([src/lib/ai/groq.ts](src/lib/ai/groq.ts)), so a single rate-limited or revoked key used
+to take all of them down at once. `GROQ_API_KEY2` is tried only when the first key fails
+for a reason that is plausibly about that key specifically — a 429 rate limit or a
+401/403 rejection — never for a timeout or a network error, which would fail identically
+on a second key and would only spend the request's whole deadline twice for nothing.
+With only one key set, behaviour is unchanged.
 
 How it is kept honest:
 
@@ -226,6 +237,11 @@ requests to your own site.
 - **PDF accessibility checks stop at tagging and language.** Per-image alt-text
   detection was built and cut for reliability — see [Resume tools](#resume-tools) — so
   an untagged file is flagged, but a tagged file's alt text is not separately verified.
+- **Skill-gap notes never name a specific resource.** No course, book, instructor, or
+  URL — the model cannot be asked anything verifiable about your resume here, so the
+  only thing it could fabricate instead is a resource that sounds plausible and does
+  not exist. It sticks to what it can say honestly: what the skill is, and a general
+  starting point.
 - **No browser.** The analyzer reads the HTML your server sends. A portfolio that renders
   its projects client-side will score 0 on projects — the report says so, and notes that
   crawlers and link previews have the same blind spot.
@@ -346,6 +362,24 @@ job.
 soft-skill prose ("excellent communicator") — nothing not expressible as a named skill
 in the shared vocabulary. The score is a floor on fit, not a verdict on it.
 
+### Skill-gap notes
+
+Tick "Explain the skills I'm missing" and every skill Job Match flagged as absent
+([src/lib/ai/skillgap.ts](src/lib/ai/skillgap.ts)) gets a short note: what the thing
+actually is, in plain language, and a general, honest way to start closing the gap —
+turning a red X into something actionable instead of a term to go look up yourself.
+
+The guard here is a different shape from the rewrite's or the cover letter's, because
+the risk is different. Neither is possible to ask about here — the model is never asked
+anything about *your* resume, only about a named public skill — so what it can fabricate
+instead is a *resource*: a course, book, or link that sounds plausible and does not
+exist. The prompt is barred from naming any specific course, book, instructor, company,
+or URL — "the official documentation" is allowed because every real technology has one
+and it is not a specific, unverifiable claim — and a mechanical strip removes any URL
+that gets through regardless, since the one thing this feature cannot verify is left out
+rather than rendered and trusted. Only costs a model call when Job Match actually found
+something missing to explain.
+
 ### Cover letter
 
 The same page reviews a cover letter you already wrote (length, a greeting addressed to
@@ -402,7 +436,7 @@ check that reads "fixed" here was actually resolved, not just reworded.
 POST   /api/analyze       { url, checkLinks?, ai?, save?: boolean } -> { result, trend }
 POST   /api/analyze/file  multipart: file, documentKind?, discipline?, ai?, checkLinks?,
                           rewrite?, jobDescription?, coverLetterText?, coverLetterDraft?,
-                          focus? ("full" | "jobmatch"), save?
+                          skillGapNotes?, focus? ("full" | "jobmatch"), save?
                           -> { result, trend, detectedKind, classificationConfidence }
 GET    /api/history       -> { entries }
 DELETE /api/history       -> clears all
@@ -491,6 +525,15 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   both reports tie on is dropped from the diff; a suggestion fixed in the newer report
   reads as fixed there and open in the older one; and a shared top score never gets
   falsely declared a winner.
+- **Groq key fallback** — with fetch mocked: falls through to the second key on a 401
+  and on a 429, does not touch a second key on a network failure (which would fail
+  identically on either), does not invent a second key that was never configured, and
+  still throws its plain "unconfigured" error with neither key set.
+- **Skill-gap notes** — notes are returned in the order the skills were actually
+  requested, not the order the model replied in; a skill the model was not asked about
+  is dropped even if it answered anyway; a URL is stripped out of both fields no matter
+  how it is written; and no model call is made at all when there is nothing missing to
+  explain.
 
 Document fixtures are synthesised at test time — real PDFs via pdf-lib, real .docx via a
 small store-only ZIP writer in [test/doc-helpers.ts](test/doc-helpers.ts). A committed
