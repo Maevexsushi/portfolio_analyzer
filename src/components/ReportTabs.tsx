@@ -148,7 +148,6 @@ export function ReportTabs({ tabs }: { tabs: ReportTab[] }) {
             aria-labelledby={`reporttab-${tab.id}`}
             tabIndex={0}
             hidden={tab.id !== active}
-            className="focus-visible:outline-none"
           >
             {/* Only visible on paper, where the tab strip is gone and each panel
                 needs its own heading to be findable. */}

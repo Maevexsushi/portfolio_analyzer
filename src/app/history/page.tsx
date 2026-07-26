@@ -52,7 +52,7 @@ export default async function HistoryPage() {
           <p className="text-ink-soft">Run an analysis and it will show up here.</p>
           <Link
             href="/"
-            className="btn-brand mt-4 inline-block rounded-lg px-5 py-2.5 font-bold"
+            className="btn-brand mt-4 inline-flex h-14 items-center justify-center rounded-lg px-7 font-bold"
           >
             Analyze a portfolio or resume
           </Link>

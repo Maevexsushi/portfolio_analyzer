@@ -188,7 +188,7 @@ export default async function HomePage() {
                 <li key={check.title} className="card card-interactive group p-5">
                   <span
                     aria-hidden
-                    className="mb-3 grid h-12 w-12 place-items-center rounded-lg text-white transition-transform duration-200 group-hover:scale-110"
+                    className="mb-3 grid h-14 w-14 place-items-center rounded-lg text-white transition-transform duration-200 group-hover:scale-110"
                     style={{ backgroundColor: TONE_BG[check.tone] }}
                   >
                     <Icon size={22} strokeWidth={2.25} />

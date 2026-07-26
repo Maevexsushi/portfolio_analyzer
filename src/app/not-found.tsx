@@ -9,12 +9,15 @@ export default function NotFound() {
         may have been deleted or pushed out. Running the analysis again takes a few seconds.
       </p>
       <div className="mt-6 flex items-center justify-center gap-3">
-        <Link href="/" className="btn-brand rounded-lg px-5 py-2.5 font-bold">
+        <Link
+          href="/"
+          className="btn-brand inline-flex h-14 items-center justify-center rounded-lg px-7 font-bold"
+        >
           Analyze a portfolio
         </Link>
         <Link
           href="/history"
-          className="btn-secondary rounded-lg px-5 py-2.5 font-bold"
+          className="btn-secondary inline-flex h-14 items-center justify-center rounded-lg px-7 font-bold"
         >
           View history
         </Link>

@@ -26,7 +26,7 @@ function WithPlaceholders({ text }: { text: string }) {
         part.startsWith("[") && part.endsWith("]") ? (
           <mark
             key={index}
-            className="rounded border border-warn/40 bg-warn-soft px-1 font-semibold text-warn"
+            className="rounded-md border border-warn/40 bg-warn-soft px-1 font-semibold text-warn"
           >
             {part}
           </mark>
@@ -118,7 +118,7 @@ export function RewritePanel({
               <dl className="mt-3 space-y-2">
                 {rewrite.placeholders.map((placeholder) => (
                   <div key={placeholder.token} className="flex flex-wrap gap-x-2 text-sm">
-                    <dt className="shrink-0 rounded border border-warn/40 bg-surface px-1.5 py-0.5 font-mono font-bold text-warn">
+                    <dt className="shrink-0 rounded-md border border-warn/40 bg-surface px-1.5 py-0.5 font-mono font-bold text-warn">
                       {placeholder.token}
                     </dt>
                     <dd className="min-w-0 flex-1 text-ink-soft">{placeholder.prompt}</dd>
