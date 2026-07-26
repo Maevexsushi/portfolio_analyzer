@@ -19,9 +19,10 @@ And it is not a developer tool. The analyzer detects the applicant's field — d
 writing, healthcare, trades, marketing, education, and others — and judges the work
 against that field's expectations. See [Fields](#fields).
 
-A resume gets four things a plain score cannot: an AI rewrite that will not invent a
-number, a check against a specific job posting, a cover letter reviewed or drafted from
-it, and a side-by-side comparison against past versions. See
+A resume gets several things a plain score cannot: an AI rewrite that will not invent a
+number, a check against a specific job posting with notes on how to close what's
+missing, a cover letter reviewed or drafted from it, a preview of the exact fields a
+parser extracts from it, and a side-by-side comparison against past versions. See
 [Resume tools](#resume-tools).
 
 ```bash
@@ -52,6 +53,7 @@ npm run dev                  # http://localhost:3000
 | AI resume rewrite | [src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts), [src/components/panels/RewritePanel.tsx](src/components/panels/RewritePanel.tsx) |
 | Job Match page + engine | [src/app/job-match/](src/app/job-match/), [src/lib/jobmatch/](src/lib/jobmatch/) |
 | Skill-gap notes (AI) | [src/lib/ai/skillgap.ts](src/lib/ai/skillgap.ts) |
+| ATS parse preview | [src/lib/document/parsepreview.ts](src/lib/document/parsepreview.ts) |
 | Cover letter analyzer + AI generator | [src/lib/document/coverletter.ts](src/lib/document/coverletter.ts), [src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts) |
 | Resume comparison | [src/lib/compare.ts](src/lib/compare.ts), [src/app/compare/page.tsx](src/app/compare/page.tsx) |
 | PDF report export | [src/lib/pdf.ts](src/lib/pdf.ts) |
@@ -84,9 +86,10 @@ performance 10%. The AI review carries no weight and changes no score.
 
 ## The report
 
-One feature per tab. A full report is seven to nine panels of dense findings; stacked
-on a single page that is a very long scroll where the panel you want is always below
-the fold and nothing tells you where you are.
+One feature per tab. A full report is anywhere from seven panels (a website) to over a
+dozen (a resume, once job matching, the cover letter, and the improved draft are all
+in play); stacked on a single page that is a very long scroll where the panel you want
+is always below the fold and nothing tells you where you are.
 
 Each tab carries a badge counting the checks inside it that are not passing, so the
 problems are visible before anything is opened — which is the one thing a tab strip
@@ -242,6 +245,10 @@ requests to your own site.
   only thing it could fabricate instead is a resource that sounds plausible and does
   not exist. It sticks to what it can say honestly: what the skill is, and a general
   starting point.
+- **Parse preview declines rather than guesses.** Title/company splitting only commits
+  when exactly one side of the split reads as a job title; anything more ambiguous is
+  shown as the raw, unsplit line. Education is shown as the section's own raw lines —
+  degree, school, and year are not parsed out individually.
 - **No browser.** The analyzer reads the HTML your server sends. A portfolio that renders
   its projects client-side will score 0 on projects — the report says so, and notes that
   crawlers and link previews have the same blind spot.
@@ -417,6 +424,33 @@ test fixtures during development. An untagged file already fails the check that 
 most, alt text included, so the two signals that shipped are the ones that are both
 load-bearing and reliably readable.
 
+### Parse preview
+
+Every other tab renders a check — pass, warn, fail. This tab
+([src/lib/document/parsepreview.ts](src/lib/document/parsepreview.ts)) renders the
+field itself: name, email, phone, location, links, each work-history entry split into
+title and company, the Education section's own lines, and which skills were actually
+declared versus inferred from prose — laid out the way a resume parser has to build
+them, one line at a time, with no markup to lean on. It is not a claim to replicate any
+specific ATS product's parser; it is this tool's own heuristic, the same class every one
+of them runs, made visible instead of folded into a score — so a name that gets
+swallowed by a blank field, or a role line that never separates into something a real
+system can file correctly, shows up here first, while there is still time to fix it.
+Deterministic and always computed — no opt-in, since none of it costs a model call.
+
+Two pieces are genuinely new extraction rather than a repackaging of an existing report,
+and both follow this project's usual rule: decline rather than guess badly.
+
+- **Title/company splitting.** A comma, dash, or "at" separates them in most resumes,
+  but which side is which is not fixed — "Monzo, Senior Backend Engineer" and "Senior
+  Backend Engineer, Monzo" are both common. The split is trusted only when exactly one
+  side reads as a job title (a broad list of role words) and the other does not; a line
+  that splits into two title-shaped or two company-shaped halves is shown unsplit rather
+  than assigned a coin-flip.
+- **Reading the Education section's own lines**, not just detecting the heading.
+  Nothing upstream parses degree/school/year apart — that needs field-specific
+  knowledge this heuristic does not have — so they are shown verbatim.
+
 ### Comparing versions
 
 History gains a checkbox per stored resume and a plain form that GETs the selected ids
@@ -534,6 +568,10 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   is dropped even if it answered anyway; a URL is stripped out of both fields no matter
   how it is written; and no model call is made at all when there is nothing missing to
   explain.
+- **Parse preview** — a role line splits regardless of which side the title lands on;
+  splitting declines when both or neither half reads as a title; the date range is
+  stripped before the split is attempted; Education lines stop at the next heading; and
+  only declared skills are listed, not every skill detected.
 
 Document fixtures are synthesised at test time — real PDFs via pdf-lib, real .docx via a
 small store-only ZIP writer in [test/doc-helpers.ts](test/doc-helpers.ts). A committed
