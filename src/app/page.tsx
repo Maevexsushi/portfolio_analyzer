@@ -45,18 +45,36 @@ export default async function HomePage() {
   const recent = history.slice(0, 4);
 
   return (
-    <div className="mx-auto max-w-6xl px-4">
+    <div className="relative mx-auto max-w-6xl px-4">
+      {/*
+        A single wash of brand colour behind the hero, bled to the full viewport width
+        rather than the content column so it reads as the page's own light rather than a
+        rectangle sitting on it. The one decorative element here: enough to make the top
+        feel considered, faint enough never to compete with the form, which is the only
+        thing anyone came to use.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-0 left-1/2 -z-10 h-[420px] w-screen -translate-x-1/2 opacity-[0.07]"
+        style={{
+          background: "var(--grad-brand)",
+          maskImage: "linear-gradient(to bottom, black, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, black, transparent)",
+        }}
+      />
+
       <section className="pt-14 pb-10 sm:pt-20">
-        <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-          Find out what a hiring reviewer sees in your portfolio.
+        <h1 className="max-w-3xl text-4xl leading-[1.08] font-semibold tracking-[-0.03em] text-balance sm:text-[3.4rem]">
+          Find out what a hiring reviewer sees{" "}
+          <span className="grad-text">in your work</span>.
         </h1>
-        <p className="mt-4 max-w-2xl text-lg text-ink-soft">
+        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft text-pretty">
           Pick what you are checking — a website, your resume, or a portfolio file — and get a
           scored report on what is missing, how deep the work reads, and what to fix first. Each
           one is judged against its own standards, and against your field, whatever that field is.
         </p>
 
-        <div className="mt-8 max-w-2xl">
+        <div className="card mt-9 max-w-2xl p-5 shadow-[var(--shadow-md)] sm:p-6">
           <IntakeTabs />
         </div>
 
@@ -70,7 +88,7 @@ export default async function HomePage() {
                 <li key={entry.id}>
                   <Link
                     href={`/r/${entry.id}`}
-                    className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-sm transition-colors hover:border-line-strong"
+                    className="card-interactive flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-sm shadow-[var(--shadow-sm)]"
                   >
                     <span
                       aria-hidden
@@ -98,13 +116,20 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="border-t border-line py-10">
+      <section className="border-t border-line py-12">
         <h2 className="text-xl font-semibold tracking-tight">What it checks</h2>
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CHECKS.map((check) => (
-            <li key={check.title} className="card p-4">
-              <h3 className="font-medium">{check.title}</h3>
-              <p className="mt-1.5 text-sm text-ink-soft">{check.body}</p>
+          {CHECKS.map((check, index) => (
+            <li key={check.title} className="card card-interactive p-5">
+              <span
+                aria-hidden
+                className="mb-3 grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white"
+                style={{ background: "var(--grad-brand)" }}
+              >
+                {index + 1}
+              </span>
+              <h3 className="font-semibold">{check.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{check.body}</p>
             </li>
           ))}
         </ul>

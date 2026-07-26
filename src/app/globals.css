@@ -38,15 +38,40 @@
      * Data-visualization marks. Separate from the text tokens above on purpose:
      * these are fill colors for bars, meters, and dots — never text. Values are the
      * validated status palette (good / warning / critical) plus a single-hue blue
-     * ramp for plain magnitude. `warn` sits below 3:1 on a white surface by design,
-     * so every mark that uses it also carries a numeric label and a text status —
-     * colour never carries meaning on its own here.
+     * ramp for plain magnitude.
+     *
+     * `warn` is deliberately left bright at 1.79:1 against white. Darkening it to
+     * clear 3:1 was measured and rejected: at #c97a04 the amber collapses into the
+     * green for red-green colour blindness (ΔE 4.2 deutan, against a floor of 8) and
+     * drops to 14.3 against the red for normal vision, under the hard floor of 15.
+     * Contrast is recoverable with a label; a hue a colourblind reader cannot
+     * separate is not. So every mark using it carries a numeric value and a text
+     * status, and colour never carries meaning on its own here.
      */
     --viz-good: #0ca30c;
     --viz-warn: #fab219;
     --viz-bad: #d03b3b;
     --viz-seq: #2a78d6;
     --viz-grid: #e2e5ec;
+
+    /*
+     * Elevation. Three steps, tuned low: this is a reading surface, and a report that
+     * floats off the page is harder to scan, not more premium. Each is a tight
+     * contact shadow plus a wider ambient one, which is what keeps an edge crisp
+     * instead of smudged.
+     */
+    --shadow-sm: 0 1px 2px rgb(16 20 32 / 0.04), 0 1px 3px rgb(16 20 32 / 0.06);
+    --shadow-md: 0 2px 4px rgb(16 20 32 / 0.04), 0 6px 16px -4px rgb(16 20 32 / 0.1);
+    --shadow-lg: 0 4px 8px rgb(16 20 32 / 0.05), 0 16px 40px -8px rgb(16 20 32 / 0.16);
+    --ring-brand: 0 0 0 1px color-mix(in oklab, var(--color-brand) 30%, transparent);
+
+    /* The logo's violet-to-blue sweep. Chrome and emphasis only — never a data mark. */
+    --grad-brand: linear-gradient(135deg, #6d5cf6 0%, #5b7cf7 45%, #3b9bf0 100%);
+    --grad-surface: linear-gradient(180deg, color-mix(in oklab, var(--color-brand) 4%, var(--color-surface)) 0%, var(--color-surface) 60%);
+
+    --dur-fast: 120ms;
+    --dur: 180ms;
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* Dark palette: same token names, re-pointed. Kept in sync with @theme above. */
@@ -74,6 +99,16 @@
 
     --viz-seq: #3987e5;
     --viz-grid: #262b36;
+
+    /*
+     * Shadow does almost nothing on a dark canvas — there is no light to occlude — so
+     * depth is carried by a hairline of light along the top edge instead, which is how
+     * a raised surface actually reads in the dark.
+     */
+    --shadow-sm: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 4px 16px -4px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 12px 36px -8px rgb(0 0 0 / 0.6);
+    --grad-brand: linear-gradient(135deg, #8b83ff 0%, #7b8dff 45%, #59b0f7 100%);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -101,12 +136,17 @@
 
       --viz-seq: #3987e5;
       --viz-grid: #262b36;
+
+      --shadow-sm: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
+      --shadow-md: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 4px 16px -4px rgb(0 0 0 / 0.5);
+      --shadow-lg: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 12px 36px -8px rgb(0 0 0 / 0.6);
+      --grad-brand: linear-gradient(135deg, #8b83ff 0%, #7b8dff 45%, #59b0f7 100%);
     }
   }
 
   html {
     scroll-behavior: smooth;
-    /* Sticky section nav must not cover the heading it scrolls to. */
+    /* Sticky nav must not cover the heading it scrolls to. */
     scroll-padding-top: 5rem;
   }
 
@@ -115,11 +155,44 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    /* Proportional numerals look ragged in tables and meters; opt into lining figures. */
+    font-variant-numeric: lining-nums;
+  }
+
+  /*
+   * Display type. Headings tighten as they grow — a 48px line set at the tracking of
+   * body copy reads loose and amateur, and the correction is proportional to size.
+   */
+  h1 {
+    letter-spacing: -0.025em;
+  }
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
   }
 
   :focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  /*
+   * Reveal every tab panel on paper.
+   *
+   * This has to live inside `@layer base`, next to the preflight rule it is fighting,
+   * and the reason is a cascade rule that reads backwards: for `!important`
+   * declarations layer order is inverted, so a layered `!important` beats an unlayered
+   * one *regardless of specificity*. Preflight's
+   * `[hidden]:where(…) { display: none !important }` sits in this layer, so the same
+   * override written at the bottom of the file — more specific, also important — lost
+   * silently and printed a one-tab report. In-layer, specificity decides again and
+   * `[role="tabpanel"][hidden]` wins.
+   */
+  @media print {
+    [role="tabpanel"][hidden] {
+      display: block !important;
+    }
   }
 }
 
@@ -127,7 +200,50 @@
   .card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-line);
-    border-radius: 0.875rem;
+    border-radius: 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* For cards that are themselves links or buttons. */
+  .card-interactive {
+    transition:
+      box-shadow var(--dur) var(--ease-out),
+      border-color var(--dur) var(--ease-out),
+      transform var(--dur) var(--ease-out);
+  }
+  .card-interactive:hover {
+    border-color: var(--color-line-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* The one place the brand gradient is allowed to be a fill. */
+  .grad-text {
+    background: var(--grad-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .btn-brand {
+    background: var(--grad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+    transition:
+      filter var(--dur) var(--ease-out),
+      box-shadow var(--dur) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+  }
+  .btn-brand:hover:not(:disabled) {
+    filter: brightness(1.07);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-brand:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn-brand:disabled {
+    filter: grayscale(0.4);
+    opacity: 0.5;
   }
 }
 
@@ -155,5 +271,26 @@
   .card {
     break-inside: avoid;
     border-color: #ccc;
+    box-shadow: none;
+  }
+
+  /*
+   * Tabs are a screen affordance for a long report. On paper there is no "current
+   * tab" — printing one section and silently dropping the other eight would turn a
+   * navigation choice into data loss, so the strip goes away and each panel gets its
+   * own heading. The rule that un-hides the panels themselves is in `@layer base`,
+   * for the cascade reason documented there.
+   */
+  [role="tablist"] {
+    display: none !important;
+  }
+  .print-heading {
+    display: block !important;
+  }
+  [role="tabpanel"] {
+    break-inside: auto;
+  }
+  [role="tabpanel"] + [role="tabpanel"] {
+    margin-top: 1.25rem;
   }
 }

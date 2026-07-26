@@ -52,7 +52,13 @@ export function IntakeTabs() {
 
   return (
     <div>
-      <div role="tablist" aria-label="What to analyze" className="flex gap-1">
+      {/* A segmented control rather than an underline: three peers, none of them a
+          default, and the filled pill says "you are here" more plainly than a rule. */}
+      <div
+        role="tablist"
+        aria-label="What to analyze"
+        className="inline-flex gap-1 rounded-xl border border-line bg-surface-2 p-1"
+      >
         {TABS.map((entry) => (
           <button
             key={entry.id}
@@ -62,10 +68,10 @@ export function IntakeTabs() {
             aria-controls={`intake-${entry.id}`}
             id={`tab-${entry.id}`}
             onClick={() => setTab(entry.id)}
-            className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
               tab === entry.id
-                ? "border-brand text-ink"
-                : "border-transparent text-muted hover:text-ink"
+                ? "bg-surface text-ink shadow-[var(--shadow-sm)]"
+                : "text-muted hover:text-ink"
             }`}
           >
             {entry.label}
@@ -73,7 +79,7 @@ export function IntakeTabs() {
         ))}
       </div>
 
-      <div className="border-t border-line pt-5">
+      <div className="pt-5">
         {TABS.map((entry) => (
           <div
             key={entry.id}

@@ -211,28 +211,36 @@ export function ScoreOverview({
 
   return (
     <section id="score" className="scroll-mt-20">
-      <div className="card p-5 sm:p-6">
+      {/*
+        The hero. A single ratio against a fixed 0-100 limit, so it stays a meter — a
+        gauge or a donut would be decoration standing in for one number. The score is
+        the largest thing on the page because it is the thing the reader came for.
+      */}
+      <div
+        className="card overflow-hidden p-5 shadow-[var(--shadow-md)] sm:p-7"
+        style={{ background: "var(--grad-surface)" }}
+      >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wide text-muted uppercase">
               {result.kind === "resume" ? "Resume score" : "Portfolio score"}
             </p>
-            <div className="mt-1 flex items-end gap-3">
-              <span className="text-6xl leading-none font-semibold tracking-tight">
+            <div className="mt-1.5 flex items-end gap-3">
+              <span className="text-7xl leading-[0.85] font-semibold tracking-[-0.04em]">
                 {result.overallScore}
               </span>
-              <span className="pb-1.5 text-lg text-muted">/ 100</span>
+              <span className="pb-1 text-lg text-muted">/ 100</span>
               <span
-                className="mb-1.5 rounded-lg px-2.5 py-1 text-sm font-bold text-white"
+                className="mb-1 rounded-lg px-2.5 py-1 text-sm font-bold text-white shadow-[var(--shadow-sm)]"
                 style={{ backgroundColor: BAND_MARK[band] }}
               >
                 {result.grade}
               </span>
             </div>
-            <p className="mt-3 max-w-xl text-ink-soft">{result.verdict}</p>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-soft">{result.verdict}</p>
 
             <div
-              className="mt-4 h-2.5 w-full max-w-md overflow-hidden rounded-full"
+              className="mt-5 h-2.5 w-full max-w-md overflow-hidden rounded-full"
               style={{
                 backgroundColor: `color-mix(in oklab, ${BAND_MARK[band]} 16%, var(--color-surface))`,
               }}
@@ -240,7 +248,7 @@ export function ScoreOverview({
               aria-label={`Overall score ${result.overallScore} out of 100 — ${BAND_LABEL[band]}`}
             >
               <div
-                className="h-full rounded-full"
+                className="h-full rounded-full transition-[width] duration-700 ease-out"
                 style={{
                   width: `${Math.max(1.5, result.overallScore)}%`,
                   backgroundColor: BAND_MARK[band],
@@ -275,11 +283,11 @@ export function ScoreOverview({
           </dl>
         </div>
 
-        <div className="mt-7 border-t border-line pt-6">
-          <h3 className="mb-4 text-xs font-semibold tracking-wide text-muted uppercase">
+        <div className="mt-8 border-t border-line pt-6">
+          <h3 className="mb-5 text-xs font-semibold tracking-wide text-muted uppercase">
             How the score breaks down
           </h3>
-          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+          <div className="grid gap-x-10 gap-y-6 sm:grid-cols-2">
             {result.breakdown.map((entry) => (
               <Meter
                 key={entry.key}

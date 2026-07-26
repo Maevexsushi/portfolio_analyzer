@@ -114,7 +114,7 @@ export function UrlForm({
         <button
           type="submit"
           disabled={pending || url.trim().length === 0}
-          className="rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn-brand rounded-xl px-6 py-3 font-semibold disabled:cursor-not-allowed"
         >
           {pending ? "Analyzing…" : "Analyze"}
         </button>
@@ -162,7 +162,7 @@ export function UrlForm({
               type="button"
               onClick={() => useSuggestion(suggestion)}
               disabled={pending}
-              className="mt-2.5 rounded-lg bg-brand px-3 py-1.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="btn-brand mt-2.5 rounded-lg px-3 py-1.5 font-semibold"
             >
               Analyze {suggestion} instead
             </button>

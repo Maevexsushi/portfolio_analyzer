@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen">
-        <header className="no-print sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur">
+        <header className="no-print sticky top-0 z-40 border-b border-line bg-canvas/80 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
             {/*
               The mark carries the brand; the name is live text beside it rather than
@@ -34,16 +34,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               />
               Profiled
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav className="flex items-center gap-1 text-sm font-medium">
               <Link
                 href="/"
-                className="rounded-lg px-3 py-1.5 text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink"
+                className="rounded-lg px-3 py-1.5 text-ink-soft transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
               >
                 Analyze
               </Link>
               <Link
                 href="/history"
-                className="rounded-lg px-3 py-1.5 text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink"
+                className="rounded-lg px-3 py-1.5 text-ink-soft transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
               >
                 History
               </Link>

@@ -47,17 +47,17 @@ export function Meter({
         </span>
       </div>
       <div
-        className={`mt-1.5 w-full overflow-hidden rounded-full ${height}`}
+        className={`mt-2 w-full overflow-hidden rounded-full ${height}`}
         style={{ backgroundColor: `color-mix(in oklab, ${fill} 16%, var(--color-surface))` }}
         role="img"
         aria-label={`${label}: ${value} out of 100 — ${BAND_LABEL[band]}`}
       >
         <div
-          className="h-full rounded-full"
+          className="h-full rounded-full transition-[width] duration-500 ease-out"
           style={{ width: `${Math.max(1.5, Math.min(100, value))}%`, backgroundColor: fill }}
         />
       </div>
-      {caption && <p className="mt-1.5 text-sm text-muted">{caption}</p>}
+      {caption && <p className="mt-2 text-sm leading-relaxed text-muted">{caption}</p>}
     </div>
   );
 }
@@ -106,20 +106,30 @@ export function StatTile({
   tone?: CheckStatus;
 }) {
   return (
-    <div className="card p-4">
-      <div className="flex items-center gap-2">
-        {tone && (
-          <span
-            aria-hidden
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: STATUS_MARK[tone] }}
-          />
-        )}
-        <span className="text-sm text-muted">{label}</span>
-      </div>
+    /*
+     * A tile is a hero number, not a chart, so it carries no plot and no hover layer.
+     * The status rail on the left edge does the colour work: a full-height 3px bar
+     * reads at a glance across a row of six far better than a 8px dot, and it never
+     * competes with the figure for attention.
+     */
+    <div className="card relative overflow-hidden p-4 pl-4.5">
+      {tone && (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[3px]"
+          style={{ backgroundColor: STATUS_MARK[tone] }}
+        />
+      )}
+      <div className="truncate text-sm text-muted">{label}</div>
       {/* Proportional figures: tabular-nums makes display-size numbers look loose. */}
-      <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
+      <div className="mt-1 truncate text-2xl font-semibold tracking-tight">{value}</div>
+      {/* Hints carry emails and filenames, which are long and must not spill the tile. */}
+      {hint && (
+        <div className="mt-0.5 truncate text-xs text-muted" title={hint}>
+          {hint}
+        </div>
+      )}
+      {tone && <span className="sr-only">{STATUS_LABEL[tone]}</span>}
     </div>
   );
 }
@@ -145,11 +155,14 @@ export function CheckList({ checks }: { checks: Check[] }) {
   return (
     <ul className="divide-y divide-line">
       {checks.map((check) => (
-        <li key={check.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+        <li
+          key={check.id}
+          className="-mx-2 flex gap-3 rounded-lg px-2 py-3.5 transition-colors first:pt-0 last:pb-0 hover:bg-surface-2/60"
+        >
           <StatusBadge status={check.status} />
           <div className="min-w-0">
             <p className="font-medium">{check.label}</p>
-            <p className="mt-0.5 text-sm break-words text-ink-soft">{check.detail}</p>
+            <p className="mt-1 text-sm leading-relaxed break-words text-ink-soft">{check.detail}</p>
           </div>
         </li>
       ))}

@@ -72,6 +72,36 @@ User authentication is not implemented — history is local and unauthenticated.
 Category weights: projects 28%, sections 18%, design 16%, skills 14%, links 14%,
 performance 10%. The AI review carries no weight and changes no score.
 
+## The report
+
+One feature per tab. A full report is seven to nine panels of dense findings; stacked
+on a single page that is a very long scroll where the panel you want is always below
+the fold and nothing tells you where you are.
+
+Each tab carries a badge counting the checks inside it that are not passing, so the
+problems are visible before anything is opened — which is the one thing a tab strip
+otherwise costs you against a single scroll.
+
+Three properties it has to keep to be better than what it replaced:
+
+- **Deep links still work.** The tab id is the URL hash, so `/r/<id>#ats` opens on
+  Machine readability. Switching tabs rewrites the hash via `replaceState`, so the URL
+  stays copyable without one history entry per click.
+- **Printing shows everything.** A tab is a screen affordance; on paper, printing one
+  section and dropping the other eight would turn a navigation choice into data loss.
+  `@media print` reveals every panel, drops the strip, and gives each panel its own
+  heading. Verified: the printed report is 10 pages, not 2.
+- **The keyboard works.** Arrow keys move within the strip, Home/End jump to the ends,
+  and only the active tab is in the page tab order — the ARIA tabs pattern, not a row
+  of buttons wearing tab roles.
+
+One subtlety worth knowing if you touch the print styles. The rule that un-hides the
+panels lives inside `@layer base`, not at the bottom of the file with the rest of the
+print block, because for `!important` declarations **cascade layer order is inverted**:
+a layered `!important` beats an unlayered one regardless of specificity. Tailwind's
+preflight `[hidden] { display: none !important }` is in that layer, so the same
+override written outside it loses silently and prints a one-tab report.
+
 ## Fields
 
 This started as a developer tool, and every judgement in it quietly assumed one. A

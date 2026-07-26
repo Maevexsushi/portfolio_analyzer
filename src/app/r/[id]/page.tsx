@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ScoreOverview } from "@/components/ScoreOverview";
 import { ReanalyzeButton } from "@/components/ReanalyzeButton";
+import { ReportTabs, type ReportTab } from "@/components/ReportTabs";
 import { AiReviewPanel } from "@/components/panels/AiReviewPanel";
 import { DesignPanel } from "@/components/panels/DesignPanel";
 import { DisciplinePanel } from "@/components/panels/DisciplinePanel";
@@ -27,7 +28,7 @@ import { SuggestionsPanel } from "@/components/panels/SuggestionsPanel";
 import { profileFor } from "@/lib/discipline/profiles";
 import { getAnalysis, getTrend, trendKeyFor } from "@/lib/history";
 import { shortenUrl } from "@/lib/format";
-import type { AnyResult } from "@/lib/types";
+import type { AnyResult, Check, CheckStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -37,48 +38,193 @@ const KIND_LABEL: Record<AnyResult["kind"], string> = {
   document: "Portfolio document",
 };
 
-/** Nav entries per kind — the anchors only exist for the panels that rendered. */
-function navFor(result: AnyResult): { id: string; label: string }[] {
-  const shared = [
-    { id: "score", label: "Score" },
-    { id: "edge", label: "Your edge" },
-    { id: "suggestions", label: "What to fix" },
+/**
+ * The badge a tab carries: how many checks inside it are not passing, and how bad the
+ * worst one is. It lets the reader see where the problems are before opening anything,
+ * which is the main thing a tab strip costs them versus one long scroll.
+ */
+function countIssues(checks: Check[]): { issues: number; tone: CheckStatus } {
+  const fails = checks.filter((check) => check.status === "fail").length;
+  const warns = checks.filter((check) => check.status === "warn").length;
+  return { issues: fails + warns, tone: fails > 0 ? "fail" : "warn" };
+}
+
+function tabsFor(result: AnyResult): ReportTab[] {
+  const shared: ReportTab[] = [
+    {
+      id: "fix",
+      label: "What to fix",
+      issues: result.suggestions.length,
+      tone: result.suggestions.some((s) => s.severity === "critical") ? "fail" : "warn",
+      content: <SuggestionsPanel suggestions={result.suggestions} />,
+    },
+    {
+      id: "edge",
+      label: "Your edge",
+      content: <AiReviewPanel review={result.ai} />,
+    },
   ];
 
-  switch (result.kind) {
-    case "website":
-      return [
-        ...shared,
-        { id: "basis", label: "Basis" },
-        { id: "sections", label: "Sections" },
-        { id: "projects", label: "Projects" },
-        { id: "skills", label: "Skills" },
-        { id: "links", label: "Links" },
-        { id: "design", label: "Design" },
-        { id: "performance", label: "Performance" },
-      ];
-    case "resume":
-      return [
-        ...shared,
-        { id: "basis", label: "Basis" },
-        { id: "ats", label: "Machine readability" },
-        { id: "experience", label: "Experience" },
-        { id: "structure", label: "Structure" },
-        { id: "contact", label: "Contact" },
-        { id: "skills", label: "Skills" },
-        { id: "language", label: "Writing" },
-      ];
-    case "document":
-      return [
-        ...shared,
-        { id: "basis", label: "Basis" },
-        { id: "work", label: "The work" },
-        { id: "presentation", label: "Presentation" },
-        { id: "deliverability", label: "Deliverability" },
-        { id: "contact", label: "Contact" },
-        { id: "skills", label: "Skills" },
-      ];
+  const basis: ReportTab = {
+    id: "basis",
+    label: "Basis",
+    content: (
+      <DisciplinePanel
+        discipline={result.discipline}
+        upload={result.kind === "website" ? undefined : result.upload}
+        kindLabel={KIND_LABEL[result.kind]}
+      />
+    ),
+  };
+
+  if (result.kind === "website") {
+    return [
+      ...shared,
+      {
+        id: "sections",
+        label: "Sections",
+        score: result.sections.score,
+        ...countIssues(
+          result.sections.sections
+            .filter((section) => section.required && !section.found)
+            .map((section) => ({
+              id: section.id,
+              label: section.label,
+              status: "fail" as CheckStatus,
+              detail: "",
+            })),
+        ),
+        content: <SectionsPanel report={result.sections} />,
+      },
+      {
+        id: "projects",
+        label: "Projects",
+        score: result.projects.score,
+        ...countIssues(result.projects.checks),
+        content: <ProjectsPanel report={result.projects} />,
+      },
+      {
+        id: "skills",
+        label: "Skills",
+        score: result.skills.score,
+        ...countIssues(result.skills.checks),
+        content: <SkillsPanel report={result.skills} />,
+      },
+      {
+        id: "links",
+        label: "Links",
+        score: result.links.score,
+        ...countIssues(result.links.checks),
+        content: <LinksPanel report={result.links} />,
+      },
+      {
+        id: "design",
+        label: "Design",
+        score: result.design.score,
+        ...countIssues(result.design.checks),
+        content: <DesignPanel report={result.design} />,
+      },
+      {
+        id: "performance",
+        label: "Performance",
+        score: result.performance.score,
+        ...countIssues(result.performance.checks),
+        content: <PerformancePanel report={result.performance} />,
+      },
+      basis,
+    ];
   }
+
+  if (result.kind === "resume") {
+    return [
+      ...shared,
+      {
+        id: "ats",
+        label: "Machine readability",
+        score: result.ats.score,
+        ...countIssues(result.ats.checks),
+        content: <AtsPanel report={result.ats} />,
+      },
+      {
+        id: "experience",
+        label: "Experience",
+        score: result.experience.score,
+        ...countIssues(result.experience.checks),
+        content: <ExperiencePanel report={result.experience} />,
+      },
+      {
+        id: "structure",
+        label: "Structure",
+        score: result.structure.score,
+        ...countIssues(result.structure.checks),
+        content: <StructurePanel report={result.structure} />,
+      },
+      {
+        id: "contact",
+        label: "Contact",
+        score: result.contact.score,
+        ...countIssues(result.contact.checks),
+        content: <ContactPanel report={result.contact} />,
+      },
+      {
+        id: "skills",
+        label: "Skills",
+        score: result.skills.score,
+        ...countIssues(result.skills.checks),
+        content: <SkillsPanel report={result.skills} />,
+      },
+      {
+        id: "language",
+        label: "Writing",
+        score: result.language.score,
+        ...countIssues(result.language.checks),
+        content: <LanguagePanel report={result.language} />,
+      },
+      basis,
+    ];
+  }
+
+  return [
+    ...shared,
+    {
+      id: "work",
+      label: "The work",
+      score: result.work.score,
+      ...countIssues(result.work.checks),
+      content: (
+        <WorkPanel report={result.work} workNoun={profileFor(result.discipline.key).workNoun} />
+      ),
+    },
+    {
+      id: "presentation",
+      label: "Presentation",
+      score: result.presentation.score,
+      ...countIssues(result.presentation.checks),
+      content: <PresentationPanel report={result.presentation} />,
+    },
+    {
+      id: "deliverability",
+      label: "Deliverability",
+      score: result.deliverability.score,
+      ...countIssues(result.deliverability.checks),
+      content: <DeliverabilityPanel report={result.deliverability} />,
+    },
+    {
+      id: "contact",
+      label: "Contact",
+      score: result.contact.score,
+      ...countIssues(result.contact.checks),
+      content: <ContactPanel report={result.contact} />,
+    },
+    {
+      id: "skills",
+      label: "Skills",
+      score: result.skills.score,
+      ...countIssues(result.skills.checks),
+      content: <SkillsPanel report={result.skills} />,
+    },
+    basis,
+  ];
 }
 
 function headingFor(result: AnyResult): { title: string; subtitle: string | null } {
@@ -98,11 +244,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const result = await getAnalysis(id).catch(() => null);
-  if (!result) return { title: "Report not found — Portfolio Analyzer" };
+  if (!result) return { title: "Report not found — Profiled" };
 
   const subject =
     result.kind === "website" ? shortenUrl(result.finalUrl, 40) : result.upload.fileName;
-  return { title: `${result.overallScore}/100 — ${subject} — Portfolio Analyzer` };
+  return { title: `${result.overallScore}/100 — ${subject} — Profiled` };
 }
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -112,16 +258,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   const trend = await getTrend(trendKeyFor(result), result.kind).catch(() => []);
   const heading = headingFor(result);
-  const nav = navFor(result);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+          <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-muted uppercase">
             {KIND_LABEL[result.kind]}
-          </p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{heading.title}</h1>
+          </span>
+          <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+            {heading.title}
+          </h1>
           {result.kind === "website" && (
             <a
               href={result.finalUrl}
@@ -144,14 +291,14 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             // Uploaded bytes are never stored, so there is nothing to re-run against.
             <Link
               href="/"
-              className="rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-line-strong"
+              className="rounded-xl border border-line bg-surface px-3.5 py-2 text-sm font-medium shadow-[var(--shadow-sm)] transition-colors hover:border-line-strong"
             >
               Upload a new version
             </Link>
           )}
           <a
             href={`/api/report/${result.id}`}
-            className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            className="btn-brand rounded-xl px-3.5 py-2 text-sm font-semibold"
           >
             Download PDF
           </a>
@@ -163,80 +310,32 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           {result.warnings.map((warning) => (
             <li
               key={warning}
-              className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-ink"
+              className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-ink"
             >
-              {warning}
+              <span
+                aria-hidden
+                className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: "var(--viz-warn)" }}
+              />
+              <span>{warning}</span>
             </li>
           ))}
         </ul>
       )}
 
-      <nav
-        aria-label="Report sections"
-        className="no-print sticky top-14 z-30 -mx-4 mt-6 overflow-x-auto border-b border-line bg-canvas/85 px-4 py-2 backdrop-blur"
-      >
-        <ul className="flex gap-1 text-sm whitespace-nowrap">
-          {nav.map((item) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.id}`}
-                className="block rounded-lg px-3 py-1.5 text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink"
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="mt-6 space-y-4">
+      <div className="mt-6">
         <ScoreOverview result={result} trend={trend} />
-        <AiReviewPanel review={result.ai} />
-        <SuggestionsPanel suggestions={result.suggestions} />
-        <DisciplinePanel
-          discipline={result.discipline}
-          upload={result.kind === "website" ? undefined : result.upload}
-          kindLabel={KIND_LABEL[result.kind]}
-        />
-
-        {result.kind === "website" && (
-          <>
-            <SectionsPanel report={result.sections} />
-            <ProjectsPanel report={result.projects} />
-            <SkillsPanel report={result.skills} />
-            <LinksPanel report={result.links} />
-            <DesignPanel report={result.design} />
-            <PerformancePanel report={result.performance} />
-          </>
-        )}
-
-        {result.kind === "resume" && (
-          <>
-            <AtsPanel report={result.ats} />
-            <ExperiencePanel report={result.experience} />
-            <StructurePanel report={result.structure} />
-            <ContactPanel report={result.contact} />
-            <SkillsPanel report={result.skills} />
-            <LanguagePanel report={result.language} />
-          </>
-        )}
-
-        {result.kind === "document" && (
-          <>
-            <WorkPanel report={result.work} workNoun={profileFor(result.discipline.key).workNoun} />
-            <PresentationPanel report={result.presentation} />
-            <DeliverabilityPanel report={result.deliverability} />
-            <ContactPanel report={result.contact} />
-            <SkillsPanel report={result.skills} />
-          </>
-        )}
       </div>
 
-      <div className="no-print mt-8 flex items-center justify-between border-t border-line pt-6 text-sm">
+      <div className="mt-6">
+        <ReportTabs tabs={tabsFor(result)} />
+      </div>
+
+      <div className="no-print mt-10 flex items-center justify-between border-t border-line pt-6 text-sm">
         <Link href="/" className="text-brand-ink hover:underline">
           ← Analyze something else
         </Link>
-        <Link href="/history" className="text-muted hover:text-ink">
+        <Link href="/history" className="text-muted transition-colors hover:text-ink">
           View all analyses
         </Link>
       </div>

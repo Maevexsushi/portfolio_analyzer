@@ -51,7 +51,7 @@ export default async function HistoryPage() {
           <p className="text-ink-soft">Run an analysis and it will show up here.</p>
           <Link
             href="/"
-            className="mt-4 inline-block rounded-xl bg-brand px-5 py-2.5 font-semibold text-white transition-opacity hover:opacity-90"
+            className="btn-brand mt-4 inline-block rounded-xl px-5 py-2.5 font-semibold"
           >
             Analyze a portfolio or resume
           </Link>
@@ -66,7 +66,7 @@ export default async function HistoryPage() {
 
             return (
               <section key={key} className="card overflow-hidden">
-                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-2/50 px-4 py-3">
                   <div className="min-w-0">
                     {isWebsite ? (
                       <a
@@ -97,7 +97,10 @@ export default async function HistoryPage() {
 
                 <ul className="divide-y divide-line">
                   {runs.map((entry) => (
-                    <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
+                    <li
+                      key={entry.id}
+                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2/50"
+                    >
                       <span
                         aria-hidden
                         className="h-2.5 w-2.5 shrink-0 rounded-full"

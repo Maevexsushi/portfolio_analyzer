@@ -125,8 +125,10 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
-          dragging ? "border-brand bg-brand-soft" : "border-line-strong bg-surface"
+        className={`rounded-xl border-2 border-dashed px-4 py-10 text-center transition-all duration-150 ${
+          dragging
+            ? "scale-[1.01] border-brand bg-brand-soft"
+            : "border-line-strong bg-surface hover:border-brand/50 hover:bg-surface-2/40"
         }`}
       >
         <input
@@ -229,7 +231,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       <button
         type="submit"
         disabled={!file || pending || tooBig}
-        className="mt-4 w-full rounded-xl bg-brand px-6 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+        className="btn-brand mt-4 w-full rounded-xl px-6 py-3 font-semibold disabled:cursor-not-allowed sm:w-auto"
       >
         {pending ? (isImage ? "Reading the image…" : "Analyzing…") : copy.cta}
       </button>

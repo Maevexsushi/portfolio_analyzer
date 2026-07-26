@@ -21,7 +21,7 @@ export function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="card scroll-mt-20 p-5 sm:p-6">
+    <section id={id} className="card scroll-mt-24 p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
@@ -34,17 +34,25 @@ export function Panel({
             )}
             {title}
             {score !== undefined && (
-              <span className="rounded-md bg-surface-2 px-2 py-0.5 text-sm font-semibold tabular-nums text-ink-soft">
+              <span
+                className="rounded-md px-2 py-0.5 text-sm font-semibold tabular-nums"
+                style={{
+                  backgroundColor: `color-mix(in oklab, ${BAND_MARK[bandFor(score)]} 12%, var(--color-surface))`,
+                  color: "var(--color-ink-soft)",
+                }}
+              >
                 {score}
                 <span className="text-muted">/100</span>
               </span>
             )}
           </h2>
-          {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+          {description && (
+            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted">{description}</p>
+          )}
         </div>
         {actions}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-6">{children}</div>
     </section>
   );
 }
