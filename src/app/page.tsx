@@ -1,12 +1,16 @@
 import Link from "next/link";
 import {
   BarChart3,
+  Building2,
   FileDown,
   FileText,
   FolderOpen,
   Gauge,
+  History,
   Link2,
+  ListOrdered,
   ScanSearch,
+  Target,
   Users,
   Zap,
 } from "lucide-react";
@@ -65,8 +69,32 @@ const CHECKS = [
     body: "For websites: mobile viewport, heading structure, alt text, contrast, real response timing and transfer sizes.",
   },
   {
-    icon: FileDown,
+    icon: Target,
     tone: "good",
+    title: "Job match & cover letter",
+    body: "Paste a job posting — or just its link — and see exactly which required and preferred skills your resume evidences and which it's missing. Get a cover letter reviewed, or drafted from your resume, without inventing a skill it doesn't already say.",
+  },
+  {
+    icon: ListOrdered,
+    tone: "warn",
+    title: "Rank several postings",
+    body: "Have more than one posting open in a tab? Upload your resume once and paste them all in, ranked best fit first, with the same skill-by-skill detail as a single match.",
+  },
+  {
+    icon: Building2,
+    tone: "brand",
+    title: "Company research briefing",
+    body: "Paste a company's own homepage, About, or Careers page and get a short interview-prep briefing built only from what they actually publish — every claim paired with the line that backs it.",
+  },
+  {
+    icon: History,
+    tone: "good",
+    title: "Track your progress",
+    body: "Every analysis is saved to your history. Pick two and compare them side by side to see exactly what improved, what regressed, and what's still open.",
+  },
+  {
+    icon: FileDown,
+    tone: "warn",
     title: "PDF export",
     body: "Download the whole report as a PDF to work through offline or share with a mentor.",
   },
@@ -80,16 +108,16 @@ const TONE_BG: Record<string, string> = {
 
 const STEPS = [
   {
-    title: "It fetches the HTML your site serves.",
-    body: "The same bytes a search engine or a link preview would get — no browser, no JavaScript execution.",
+    title: "You say what you're checking.",
+    body: "A URL, a resume, or a portfolio file — one form, and each is judged against its own standards, not one generic rubric.",
   },
   {
-    title: "It downloads your stylesheets and samples asset sizes.",
-    body: "That is where the palette, typeface, contrast, and page-weight numbers come from.",
+    title: "It reads exactly what's there.",
+    body: "The same HTML bytes a search engine would get for a site — no browser, no JavaScript execution — or the text actually extracted from a file. Nothing is invented or assumed.",
   },
   {
-    title: "It probes your outbound links.",
-    body: "GitHub, LinkedIn, live demos, resume — each one gets a real request.",
+    title: "It checks structure, evidence, and fit.",
+    body: "Whichever applies to what you gave it: ATS-readable formatting, dead outbound links, mobile viewport and contrast, or a resume's skills matched against a job posting.",
   },
   {
     title: "It scores and ranks the fixes.",
