@@ -36,7 +36,7 @@ export default async function HistoryPage() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analysis history</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Analysis history</h1>
           <p className="mt-1 text-sm text-muted">
             {entries.length === 0
               ? "Nothing stored yet."
@@ -51,7 +51,7 @@ export default async function HistoryPage() {
           <p className="text-ink-soft">Run an analysis and it will show up here.</p>
           <Link
             href="/"
-            className="btn-brand mt-4 inline-block rounded-xl px-5 py-2.5 font-semibold"
+            className="btn-brand mt-4 inline-block rounded-lg px-5 py-2.5 font-bold"
           >
             Analyze a portfolio or resume
           </Link>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { AlertTriangle } from "lucide-react";
 import { ScoreOverview } from "@/components/ScoreOverview";
 import { ReanalyzeButton } from "@/components/ReanalyzeButton";
 import { ReportTabs, type ReportTab } from "@/components/ReportTabs";
@@ -276,13 +277,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const heading = headingFor(result);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-muted uppercase">
+          <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-0.5 text-xs font-bold tracking-wider text-muted uppercase">
             {KIND_LABEL[result.kind]}
           </span>
-          <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="mt-2 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">
             {heading.title}
           </h1>
           {result.kind === "website" && (
@@ -307,14 +308,14 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             // Uploaded bytes are never stored, so there is nothing to re-run against.
             <Link
               href="/"
-              className="rounded-xl border border-line bg-surface px-3.5 py-2 text-sm font-medium shadow-[var(--shadow-sm)] transition-colors hover:border-line-strong"
+              className="btn-secondary rounded-lg px-3.5 py-2 text-sm font-bold"
             >
               Upload a new version
             </Link>
           )}
           <a
             href={`/api/report/${result.id}`}
-            className="btn-brand rounded-xl px-3.5 py-2 text-sm font-semibold"
+            className="btn-brand rounded-lg px-3.5 py-2 text-sm font-bold"
           >
             Download PDF
           </a>
@@ -326,13 +327,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           {result.warnings.map((warning) => (
             <li
               key={warning}
-              className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-ink"
+              className="flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm text-ink"
             >
-              <span
-                aria-hidden
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: "var(--viz-warn)" }}
-              />
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span>{warning}</span>
             </li>
           ))}

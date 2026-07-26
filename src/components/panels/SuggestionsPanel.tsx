@@ -1,22 +1,29 @@
+import { AlertOctagon, AlertTriangle, Info } from "lucide-react";
 import { EmptyNote, Panel } from "@/components/Panel";
 import { CATEGORY_LABELS } from "@/lib/analyzer";
 import type { CategoryKey, Severity, Suggestion } from "@/lib/types";
 
-const SEVERITY_STYLE: Record<Severity, { chip: string; mark: string; label: string }> = {
+const SEVERITY_STYLE: Record<
+  Severity,
+  { chip: string; mark: string; label: string; icon: typeof AlertOctagon }
+> = {
   critical: {
     chip: "bg-bad-soft text-bad border-bad/40",
     mark: "var(--viz-bad)",
     label: "Critical",
+    icon: AlertOctagon,
   },
   important: {
     chip: "bg-warn-soft text-warn border-warn/40",
     mark: "var(--viz-warn)",
     label: "Important",
+    icon: AlertTriangle,
   },
   polish: {
     chip: "bg-surface-2 text-muted border-line",
     mark: "var(--color-line-strong)",
     label: "Polish",
+    icon: Info,
   },
 };
 
@@ -52,14 +59,11 @@ export function SuggestionsPanel({ suggestions }: { suggestions: Suggestion[] })
         <div className="space-y-6">
           {grouped.map((group) => {
             const style = SEVERITY_STYLE[group.severity];
+            const Icon = style.icon;
             return (
               <div key={group.severity}>
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: style.mark }}
-                  />
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+                  <Icon size={16} style={{ color: style.mark }} aria-hidden />
                   {style.label}
                   <span className="text-muted tabular-nums">{group.items.length}</span>
                 </h3>
@@ -70,9 +74,12 @@ export function SuggestionsPanel({ suggestions }: { suggestions: Suggestion[] })
                       className="rounded-lg border border-line p-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="min-w-0 font-medium">{suggestion.title}</p>
+                        <p className="min-w-0 font-bold">{suggestion.title}</p>
                         <span className="flex shrink-0 items-center gap-2 text-xs">
-                          <span className={`rounded-md border px-1.5 py-0.5 ${style.chip}`}>
+                          <span
+                            className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 ${style.chip}`}
+                          >
+                            <Icon size={12} aria-hidden />
                             {style.label}
                           </span>
                           <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-muted tabular-nums">

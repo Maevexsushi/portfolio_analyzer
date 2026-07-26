@@ -1,32 +1,61 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Light and dark are both first-class: the palette is defined here as
- * CSS variables and mapped into Tailwind's theme so utilities like `bg-surface` and
- * `text-muted` work in both modes without per-element dark: variants.
+ * Design tokens — Flat Design system.
+ *
+ * Single light palette, no dark mode: the system this app now follows defines one set
+ * of values, not a light/dark pair, and inventing dark equivalents nobody asked for
+ * would be guessing at a palette the spec never specifies. Zero shadows, zero blur —
+ * hierarchy comes from scale, color, and type weight instead, per the system's first
+ * principle ("the Z-axis does not exist").
+ *
+ * Every color below carries the WCAG contrast ratio it was chosen for, computed against
+ * white (the page background) unless stated otherwise. The system specifies Primary/
+ * Secondary/Accent as single hex values (Blue 500, Emerald 500, Amber 500) for FILLS —
+ * button backgrounds, icon circles — where only the 3:1 non-text/graphics floor applies.
+ * Used as TEXT on white, none of the three clear 4.5:1, so each has a second, darker
+ * step for that job: the fill stays exactly as specified, the text step is a design
+ * decision this app needs and the spec's own accessibility note ("check carefully with
+ * lighter accents") asks for.
  */
 @theme {
-  --color-canvas: #f7f8fa;
+  --color-canvas: #ffffff; /* Background */
   --color-surface: #ffffff;
-  --color-surface-2: #f1f3f7;
-  --color-line: #e2e5ec;
-  --color-line-strong: #cbd1dd;
-  --color-ink: #12151c;
-  --color-ink-soft: #3d4453;
-  --color-muted: #6b7385;
+  --color-surface-2: #f3f4f6; /* Muted */
+  --color-line: #e5e7eb; /* Border */
+  --color-line-strong: #d1d5db;
+  --color-ink: #111827; /* Foreground */
+  --color-ink-soft: #374151; /* gray-700 — secondary body copy; the spec has no second text step, this app needs one */
+  --color-muted: #6b7280; /* gray-500 — captions, hints */
 
-  --color-brand: #4f46e5;
-  --color-brand-soft: #eef0fe;
-  --color-brand-ink: #3730b3;
+  --color-brand: #3b82f6; /* Primary (Blue 500) — button/fill use, per spec */
+  --color-brand-soft: #eff6ff;
+  --color-brand-ink: #2563eb; /* blue-600 — 5.16:1 on white, for link text */
 
-  --color-good: #158a55;
-  --color-good-soft: #e4f5ec;
-  --color-warn: #a86000;
-  --color-warn-soft: #fdf1de;
-  --color-bad: #c3311f;
-  --color-bad-soft: #fdeceb;
+  /*
+   * Status colors do double duty: pass/warn/fail semantics (checks, suggestions), and
+   * the spec's Secondary (emerald) / Accent (amber) decorative accents (stat numbers,
+   * feature icons). Same hue families either way, so one set of tokens serves both
+   * rather than two colliding definitions of "green."
+   *
+   * good  — Secondary, Emerald.  #10b981 (500, spec's exact fill) fails text (2.5:1);
+   *         #047857 (700) → 5.48:1, passes AA text.
+   * warn  — Accent, Amber.       #f59e0b (500, spec's exact fill) fails badly (2.1:1);
+   *         #b45309 (700) → 5.02:1, passes AA text.
+   * bad   — not in the spec's palette at all; the system defines no error color despite
+   *         this app having real broken/critical states. Added as Red, the same family
+   *         Tailwind ships alongside Blue/Emerald/Amber, so it reads as part of the set
+   *         rather than a bolt-on. #ef4444 (500) fails text (3.76:1); #b91c1c (700) →
+   *         6.47:1.
+   */
+  --color-good: #047857;
+  --color-good-soft: #ecfdf5;
+  --color-warn: #b45309;
+  --color-warn-soft: #fffbeb;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #fef2f2;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
 }
 
@@ -35,113 +64,22 @@
     color-scheme: light;
 
     /*
-     * Data-visualization marks. Separate from the text tokens above on purpose:
-     * these are fill colors for bars, meters, and dots — never text. Values are the
-     * validated status palette (good / warning / critical) plus a single-hue blue
-     * ramp for plain magnitude.
-     *
-     * `warn` is deliberately left bright at 1.79:1 against white. Darkening it to
-     * clear 3:1 was measured and rejected: at #c97a04 the amber collapses into the
-     * green for red-green colour blindness (ΔE 4.2 deutan, against a floor of 8) and
-     * drops to 14.3 against the red for normal vision, under the hard floor of 15.
-     * Contrast is recoverable with a label; a hue a colourblind reader cannot
-     * separate is not. So every mark using it carries a numeric value and a text
-     * status, and colour never carries meaning on its own here.
+     * Data-visualization marks: fills for bars, meters, dots. Kept one step brighter
+     * than the text tokens above — spec's literal 500/600 fill values — because a mark
+     * is a graphical object (WCAG 1.4.11, 3:1 floor) rather than text (1.4.3, 4.5:1),
+     * and the more saturated step is the vivid, "confident" color the system asks for.
+     * Every mark using these still carries a numeric value and a text status alongside
+     * it, so nothing here depends on color reaching text contrast on its own.
      */
-    --viz-good: #0ca30c;
-    --viz-warn: #fab219;
-    --viz-bad: #d03b3b;
-    --viz-seq: #2a78d6;
-    --viz-grid: #e2e5ec;
+    --viz-good: #059669; /* emerald-600, 3.77:1 */
+    --viz-warn: #d97706; /* amber-600, 3.18:1 */
+    --viz-bad: #dc2626; /* red-600, 4.83:1 */
+    --viz-seq: #3b82f6; /* Primary blue — ties plain-magnitude marks to the brand fill */
+    --viz-grid: #e5e7eb;
 
-    /*
-     * Elevation. Three steps, tuned low: this is a reading surface, and a report that
-     * floats off the page is harder to scan, not more premium. Each is a tight
-     * contact shadow plus a wider ambient one, which is what keeps an edge crisp
-     * instead of smudged.
-     */
-    --shadow-sm: 0 1px 2px rgb(16 20 32 / 0.04), 0 1px 3px rgb(16 20 32 / 0.06);
-    --shadow-md: 0 2px 4px rgb(16 20 32 / 0.04), 0 6px 16px -4px rgb(16 20 32 / 0.1);
-    --shadow-lg: 0 4px 8px rgb(16 20 32 / 0.05), 0 16px 40px -8px rgb(16 20 32 / 0.16);
-    --ring-brand: 0 0 0 1px color-mix(in oklab, var(--color-brand) 30%, transparent);
-
-    /* The logo's violet-to-blue sweep. Chrome and emphasis only — never a data mark. */
-    --grad-brand: linear-gradient(135deg, #6d5cf6 0%, #5b7cf7 45%, #3b9bf0 100%);
-    --grad-surface: linear-gradient(180deg, color-mix(in oklab, var(--color-brand) 4%, var(--color-surface)) 0%, var(--color-surface) 60%);
-
-    --dur-fast: 120ms;
-    --dur: 180ms;
-    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  }
-
-  /* Dark palette: same token names, re-pointed. Kept in sync with @theme above. */
-  :root:where(.dark, [data-theme="dark"]) {
-    color-scheme: dark;
-    --color-canvas: #0b0d12;
-    --color-surface: #14171f;
-    --color-surface-2: #1c2029;
-    --color-line: #262b36;
-    --color-line-strong: #384150;
-    --color-ink: #f2f4f8;
-    --color-ink-soft: #ccd2de;
-    --color-muted: #8b93a5;
-
-    --color-brand: #8b83ff;
-    --color-brand-soft: #211f3d;
-    --color-brand-ink: #b6b0ff;
-
-    --color-good: #3fce8f;
-    --color-good-soft: #10281e;
-    --color-warn: #e0a34a;
-    --color-warn-soft: #2a2013;
-    --color-bad: #f0776a;
-    --color-bad-soft: #2c1616;
-
-    --viz-seq: #3987e5;
-    --viz-grid: #262b36;
-
-    /*
-     * Shadow does almost nothing on a dark canvas — there is no light to occlude — so
-     * depth is carried by a hairline of light along the top edge instead, which is how
-     * a raised surface actually reads in the dark.
-     */
-    --shadow-sm: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-md: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 4px 16px -4px rgb(0 0 0 / 0.5);
-    --shadow-lg: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 12px 36px -8px rgb(0 0 0 / 0.6);
-    --grad-brand: linear-gradient(135deg, #8b83ff 0%, #7b8dff 45%, #59b0f7 100%);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not(.light):not([data-theme="light"]) {
-      color-scheme: dark;
-      --color-canvas: #0b0d12;
-      --color-surface: #14171f;
-      --color-surface-2: #1c2029;
-      --color-line: #262b36;
-      --color-line-strong: #384150;
-      --color-ink: #f2f4f8;
-      --color-ink-soft: #ccd2de;
-      --color-muted: #8b93a5;
-
-      --color-brand: #8b83ff;
-      --color-brand-soft: #211f3d;
-      --color-brand-ink: #b6b0ff;
-
-      --color-good: #3fce8f;
-      --color-good-soft: #10281e;
-      --color-warn: #e0a34a;
-      --color-warn-soft: #2a2013;
-      --color-bad: #f0776a;
-      --color-bad-soft: #2c1616;
-
-      --viz-seq: #3987e5;
-      --viz-grid: #262b36;
-
-      --shadow-sm: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
-      --shadow-md: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 4px 16px -4px rgb(0 0 0 / 0.5);
-      --shadow-lg: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 12px 36px -8px rgb(0 0 0 / 0.6);
-      --grad-brand: linear-gradient(135deg, #8b83ff 0%, #7b8dff 45%, #59b0f7 100%);
-    }
+    --dur-fast: 100ms;
+    --dur: 200ms;
+    --dur-slow: 300ms;
   }
 
   html {
@@ -157,20 +95,36 @@
     -webkit-font-smoothing: antialiased;
     /* Proportional numerals look ragged in tables and meters; opt into lining figures. */
     font-variant-numeric: lining-nums;
+
+    /*
+     * Nothing may scroll the page sideways.
+     *
+     * `clip`, not `hidden`: `overflow: hidden` turns the body into a scroll container,
+     * which silently breaks every `position: sticky` descendant — the report's tab
+     * strip and the site header both depend on it. `clip` cuts the overflow without
+     * creating that container. Backstop only; the actual source of an overflow gets
+     * fixed at the element, not papered over here.
+     */
+    overflow-x: clip;
   }
 
   /*
-   * Display type. Headings tighten as they grow — a 48px line set at the tracking of
-   * body copy reads loose and amateur, and the correction is proportional to size.
+   * Display type: geometric, bold, tight. The system specifies -0.02em on headings;
+   * applied uniformly rather than the size-proportional taper used previously, since
+   * one fixed value is what "consistent throughout" means for this system.
    */
-  h1 {
-    letter-spacing: -0.025em;
-  }
+  h1,
   h2,
   h3 {
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
 
+  /*
+   * No shadows means focus has to read entirely from color and shape. A 2px solid
+   * outline with a visible offset is the one indicator standing in for every glow,
+   * ring, and elevation change this system forbids.
+   */
   :focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
@@ -197,53 +151,94 @@
 }
 
 @layer components {
+  /*
+   * Cards: "Color Block" per the system — solid fill, rounded-lg, no shadow, generally
+   * no border. One deliberate, narrow exception: this app is a dense, data-heavy
+   * report, and the system's own technique for edgeless cards is alternating the PAGE
+   * background (white / gray-100) so a card's fill contrasts with what is behind it.
+   * That works on a marketing page; a report page nests panel inside tab inside
+   * section, and alternating backgrounds that many levels deep stops reading as
+   * structure and starts reading as random tinting. So a hairline border (the same
+   * weight the system already permits for inputs) replaces the shadow this app used to
+   * carry elevation with, everywhere the alternating-background technique does not
+   * reach. It is the one place this app's density asked for something the spec did not
+   * literally write down, and it costs nothing the system actually rules out — no
+   * shadow, no blur, no depth, just a 1px edge.
+   */
   .card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-line);
-    border-radius: 1rem;
-    box-shadow: var(--shadow-sm);
+    border-radius: 0.75rem;
   }
 
-  /* For cards that are themselves links or buttons. */
   .card-interactive {
     transition:
-      box-shadow var(--dur) var(--ease-out),
-      border-color var(--dur) var(--ease-out),
-      transform var(--dur) var(--ease-out);
+      border-color var(--dur) ease,
+      background-color var(--dur) ease,
+      transform var(--dur) ease;
   }
   .card-interactive:hover {
     border-color: var(--color-line-strong);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    transform: scale(1.02);
   }
 
-  /* The one place the brand gradient is allowed to be a fill. */
-  .grad-text {
-    background: var(--grad-brand);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
+  /*
+   * Primary button. Solid fill, white text, color-shift + scale on hover — exactly the
+   * system's spec, replacing the gradient fill this app used before: "never colorful or
+   * vibrant gradients" on a button is one of the system's explicit bans.
+   */
   .btn-brand {
-    background: var(--grad-brand);
+    background-color: var(--color-brand);
     color: #fff;
-    box-shadow: var(--shadow-sm);
     transition:
-      filter var(--dur) var(--ease-out),
-      box-shadow var(--dur) var(--ease-out),
-      transform var(--dur-fast) var(--ease-out);
+      background-color var(--dur) ease,
+      transform var(--dur-fast) ease;
   }
   .btn-brand:hover:not(:disabled) {
-    filter: brightness(1.07);
-    box-shadow: var(--shadow-md);
+    background-color: #2563eb; /* blue-600 */
+    transform: scale(1.05);
   }
   .btn-brand:active:not(:disabled) {
-    transform: translateY(1px);
+    transform: scale(0.98);
   }
   .btn-brand:disabled {
-    filter: grayscale(0.4);
-    opacity: 0.5;
+    background-color: var(--color-line-strong);
+    color: var(--color-muted);
+  }
+
+  /* Secondary button: solid muted fill, dark text, the same hover language. */
+  .btn-secondary {
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+    transition:
+      background-color var(--dur) ease,
+      transform var(--dur-fast) ease;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-line-strong);
+    transform: scale(1.05);
+  }
+
+  /*
+   * Outline button: thick border, transparent fill, fills solid on hover. `border-4`
+   * as specified — bolder than the 1px/2px used everywhere else, and deliberately so;
+   * the system calls this out by name as a case where more weight reads as more
+   * confident, not heavier-handed.
+   */
+  .btn-outline {
+    border-width: 4px;
+    border-color: var(--color-brand);
+    color: var(--color-brand-ink);
+    background-color: transparent;
+    transition:
+      background-color var(--dur) ease,
+      color var(--dur) ease,
+      transform var(--dur-fast) ease;
+  }
+  .btn-outline:hover:not(:disabled) {
+    background-color: var(--color-brand);
+    color: #fff;
+    transform: scale(1.05);
   }
 }
 
@@ -271,7 +266,6 @@
   .card {
     break-inside: avoid;
     border-color: #ccc;
-    box-shadow: none;
   }
 
   /*

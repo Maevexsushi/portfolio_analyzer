@@ -1,3 +1,4 @@
+import { Check, Minus } from "lucide-react";
 import { Panel, SubHeading } from "@/components/Panel";
 import { StatusBadge } from "@/components/viz";
 import type { SectionsReport } from "@/lib/types";
@@ -38,14 +39,18 @@ export function SectionsPanel({ report }: { report: SectionsReport }) {
           {bonus.map((section) => (
             <li
               key={section.id}
-              className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
                 section.found
                   ? "border-good/40 bg-good-soft text-ink"
                   : "border-line bg-surface-2 text-muted"
               }`}
               title={section.found ? section.evidence.join(" · ") : "Not found"}
             >
-              <span aria-hidden>{section.found ? "✓" : "—"}</span>
+              {section.found ? (
+                <Check size={14} strokeWidth={3} aria-hidden />
+              ) : (
+                <Minus size={14} strokeWidth={3} aria-hidden />
+              )}
               {section.label}
               <span className="sr-only">{section.found ? " found" : " not found"}</span>
             </li>

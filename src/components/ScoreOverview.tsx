@@ -215,23 +215,26 @@ export function ScoreOverview({
         The hero. A single ratio against a fixed 0-100 limit, so it stays a meter — a
         gauge or a donut would be decoration standing in for one number. The score is
         the largest thing on the page because it is the thing the reader came for.
+        Tinted to the score's own band — a "Color Block" per the system, and the one
+        place a vibrant fill earns its keep: the single most important number on the
+        whole report gets a background that argues its own case before you read a digit.
       */}
       <div
-        className="card overflow-hidden p-5 shadow-[var(--shadow-md)] sm:p-7"
-        style={{ background: "var(--grad-surface)" }}
+        className="card overflow-hidden p-5 sm:p-7"
+        style={{ backgroundColor: `var(--color-${band}-soft)` }}
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+            <p className="text-xs font-bold tracking-wider text-muted uppercase">
               {result.kind === "resume" ? "Resume score" : "Portfolio score"}
             </p>
             <div className="mt-1.5 flex items-end gap-3">
-              <span className="text-7xl leading-[0.85] font-semibold tracking-[-0.04em]">
+              <span className="text-7xl leading-[0.85] font-extrabold tracking-[-0.04em]">
                 {result.overallScore}
               </span>
               <span className="pb-1 text-lg text-muted">/ 100</span>
               <span
-                className="mb-1 rounded-lg px-2.5 py-1 text-sm font-bold text-white shadow-[var(--shadow-sm)]"
+                className="mb-1 rounded-lg px-2.5 py-1 text-sm font-bold text-white"
                 style={{ backgroundColor: BAND_MARK[band] }}
               >
                 {result.grade}

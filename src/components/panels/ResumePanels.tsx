@@ -1,3 +1,4 @@
+import { AlertCircle } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { CheckList } from "@/components/viz";
 import type {
@@ -179,13 +180,16 @@ export function AtsPanel({ report }: { report: AtsReport }) {
       description="What an applicant tracking system stores when your file arrives. You cannot see this yourself, and it decides whether anyone ever reads the rest."
     >
       {!report.machineReadable && (
-        <div className="mb-5 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm">
-          <p className="font-medium">This file has no machine-readable text.</p>
-          <p className="mt-1 text-ink-soft">
-            Every applicant tracking system will store it as an empty record. No keyword search
-            will return it, and in most cases no human will see it either. Nothing else in this
-            report matters until that is fixed.
-          </p>
+        <div className="mb-5 flex gap-2.5 rounded-lg bg-bad-soft px-4 py-3 text-sm">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+          <div>
+            <p className="font-bold">This file has no machine-readable text.</p>
+            <p className="mt-1 text-ink-soft">
+              Every applicant tracking system will store it as an empty record. No keyword search
+              will return it, and in most cases no human will see it either. Nothing else in this
+              report matters until that is fixed.
+            </p>
+          </div>
         </div>
       )}
 

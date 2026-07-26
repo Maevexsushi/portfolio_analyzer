@@ -1,12 +1,13 @@
-import type { Check, CheckStatus } from "@/lib/types";
-import {
-  BAND_LABEL,
-  BAND_MARK,
-  STATUS_GLYPH,
-  STATUS_LABEL,
-  STATUS_MARK,
-  bandFor,
-} from "@/lib/format";
+import { AlertTriangle, Check, X } from "lucide-react";
+import type { Check as CheckType, CheckStatus } from "@/lib/types";
+import { BAND_LABEL, BAND_MARK, STATUS_LABEL, STATUS_MARK, bandFor } from "@/lib/format";
+
+/** One icon per state, per the system's iconography — never color alone. */
+const STATUS_ICON: Record<CheckStatus, typeof Check> = {
+  pass: Check,
+  warn: AlertTriangle,
+  fail: X,
+};
 
 /**
  * Visualization primitives.
@@ -135,19 +136,20 @@ export function StatTile({
 }
 
 export function StatusBadge({ status }: { status: CheckStatus }) {
+  const Icon = STATUS_ICON[status];
   return (
     <span
-      className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
+      className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-white"
       style={{ backgroundColor: STATUS_MARK[status] }}
       title={STATUS_LABEL[status]}
     >
-      <span aria-hidden>{STATUS_GLYPH[status]}</span>
+      <Icon aria-hidden size={12} strokeWidth={3} />
       <span className="sr-only">{STATUS_LABEL[status]}</span>
     </span>
   );
 }
 
-export function CheckList({ checks }: { checks: Check[] }) {
+export function CheckList({ checks }: { checks: CheckType[] }) {
   if (checks.length === 0) {
     return <p className="text-sm text-muted">No checks ran for this section.</p>;
   }

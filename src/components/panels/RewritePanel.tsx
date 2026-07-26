@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { formatDateTime } from "@/lib/format";
 import type { ResumeRewrite } from "@/lib/types";
@@ -25,7 +26,7 @@ function WithPlaceholders({ text }: { text: string }) {
         part.startsWith("[") && part.endsWith("]") ? (
           <mark
             key={index}
-            className="rounded bg-warn-soft px-1 font-semibold text-warn ring-1 ring-warn/40"
+            className="rounded border border-warn/40 bg-warn-soft px-1 font-semibold text-warn"
           >
             {part}
           </mark>
@@ -53,7 +54,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
           setCopied(false);
         }
       }}
-      className="shrink-0 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium transition-colors hover:border-line-strong"
+      className="shrink-0 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold transition-colors hover:border-line-strong"
     >
       {copied ? "Copied" : label}
     </button>
@@ -103,45 +104,51 @@ export function RewritePanel({
     >
       <div className="space-y-7">
         {rewrite.placeholders.length > 0 && (
-          <div className="rounded-xl border border-warn/40 bg-warn-soft p-4">
-            <h3 className="font-semibold">
-              {rewrite.placeholders.length} thing
-              {rewrite.placeholders.length === 1 ? "" : "s"} only you can fill in
-            </h3>
-            <p className="mt-1 text-sm text-ink-soft">
-              These are the numbers the rewrite refused to guess. Go and find the real figures —
-              this is the single highest-value edit on the whole document.
-            </p>
-            <dl className="mt-3 space-y-2">
-              {rewrite.placeholders.map((placeholder) => (
-                <div key={placeholder.token} className="flex flex-wrap gap-x-2 text-sm">
-                  <dt className="shrink-0 rounded bg-surface px-1.5 py-0.5 font-mono font-semibold text-warn ring-1 ring-warn/40">
-                    {placeholder.token}
-                  </dt>
-                  <dd className="min-w-0 flex-1 text-ink-soft">{placeholder.prompt}</dd>
-                </div>
-              ))}
-            </dl>
+          <div className="flex gap-3 rounded-lg border border-warn/40 bg-warn-soft p-4">
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+            <div>
+              <h3 className="font-bold">
+                {rewrite.placeholders.length} thing
+                {rewrite.placeholders.length === 1 ? "" : "s"} only you can fill in
+              </h3>
+              <p className="mt-1 text-sm text-ink-soft">
+                These are the numbers the rewrite refused to guess. Go and find the real figures —
+                this is the single highest-value edit on the whole document.
+              </p>
+              <dl className="mt-3 space-y-2">
+                {rewrite.placeholders.map((placeholder) => (
+                  <div key={placeholder.token} className="flex flex-wrap gap-x-2 text-sm">
+                    <dt className="shrink-0 rounded border border-warn/40 bg-surface px-1.5 py-0.5 font-mono font-bold text-warn">
+                      {placeholder.token}
+                    </dt>
+                    <dd className="min-w-0 flex-1 text-ink-soft">{placeholder.prompt}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         )}
 
         {rewrite.stockPhrases.length > 0 && (
-          <div className="rounded-xl border border-bad/40 bg-bad-soft p-4">
-            <h3 className="font-semibold">The draft slipped in filler of its own</h3>
-            <p className="mt-1 text-sm text-ink-soft">
-              These are the same stock phrases the Writing tab tells you to cut. The model
-              reached for them anyway; rewrite those lines in your own words before you use them.
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {rewrite.stockPhrases.map((phrase) => (
-                <li
-                  key={phrase}
-                  className="rounded-md border border-bad/40 bg-surface px-2 py-0.5 text-sm text-bad"
-                >
-                  {phrase}
-                </li>
-              ))}
-            </ul>
+          <div className="flex gap-3 rounded-lg border border-bad/40 bg-bad-soft p-4">
+            <AlertCircle size={20} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+            <div>
+              <h3 className="font-bold">The draft slipped in filler of its own</h3>
+              <p className="mt-1 text-sm text-ink-soft">
+                These are the same stock phrases the Writing tab tells you to cut. The model
+                reached for them anyway; rewrite those lines in your own words before you use them.
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {rewrite.stockPhrases.map((phrase) => (
+                  <li
+                    key={phrase}
+                    className="rounded-md border border-bad/40 bg-surface px-2 py-0.5 text-sm text-bad"
+                  >
+                    {phrase}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
 
@@ -163,7 +170,7 @@ export function RewritePanel({
 
         <div>
           <SubHeading>The draft</SubHeading>
-          <div className="rounded-xl border border-line">
+          <div className="rounded-lg border border-line">
             <div className="border-b border-line bg-surface-2/50 px-4 py-3">
               <p className="font-semibold">{rewrite.headline}</p>
               <p className="text-sm text-muted">{rewrite.contactLine}</p>

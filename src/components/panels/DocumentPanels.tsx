@@ -1,3 +1,4 @@
+import { AlertCircle } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { CheckList } from "@/components/viz";
 import { formatBytes } from "@/lib/format";
@@ -98,12 +99,15 @@ export function DeliverabilityPanel({ report }: { report: DeliverabilityReport }
       description={`${formatBytes(report.bytes)} · ${report.linkCount} link${report.linkCount === 1 ? "" : "s"}. Whether the file survives being sent and stays useful once it lands.`}
     >
       {!report.emailable && (
-        <div className="mb-5 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm">
-          <p className="font-medium">Too large for most employer inboxes.</p>
-          <p className="mt-1 text-ink-soft">
-            At {formatBytes(report.bytes)} this is over the 10 MB most corporate mail servers
-            accept. Rejections are usually silent — you would not be told it never arrived.
-          </p>
+        <div className="mb-5 flex gap-2.5 rounded-lg bg-bad-soft px-4 py-3 text-sm">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+          <div>
+            <p className="font-bold">Too large for most employer inboxes.</p>
+            <p className="mt-1 text-ink-soft">
+              At {formatBytes(report.bytes)} this is over the 10 MB most corporate mail servers
+              accept. Rejections are usually silent — you would not be told it never arrived.
+            </p>
+          </div>
         </div>
       )}
 

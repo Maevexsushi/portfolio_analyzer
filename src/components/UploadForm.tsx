@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { AlertCircle, AlertTriangle, UploadCloud } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
 import type { DisciplineKey } from "@/lib/types";
 
@@ -127,10 +128,10 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`rounded-xl border-2 border-dashed px-4 py-10 text-center transition-all duration-150 ${
+        className={`rounded-lg border-2 border-dashed px-4 py-10 text-center transition-all duration-200 ${
           dragging
             ? "scale-[1.01] border-brand bg-brand-soft"
-            : "border-line-strong bg-surface hover:border-brand/50 hover:bg-surface-2/40"
+            : "border-line-strong bg-surface-2 hover:border-brand/50"
         }`}
       >
         <input
@@ -145,7 +146,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
 
         {file ? (
           <div>
-            <p className="font-medium break-all">{file.name}</p>
+            <p className="font-bold break-all">{file.name}</p>
             <p className="mt-1 text-sm text-muted">{formatSize(file.size)}</p>
             <button
               type="button"
@@ -154,16 +155,17 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
                 if (inputRef.current) inputRef.current.value = "";
               }}
               disabled={pending}
-              className="mt-2 text-sm text-brand-ink hover:underline"
+              className="mt-2 text-sm font-semibold text-brand-ink hover:underline"
             >
               Choose a different file
             </button>
           </div>
         ) : (
           <div>
+            <UploadCloud size={28} className="mx-auto mb-2 text-muted" aria-hidden />
             <label
               htmlFor={inputId}
-              className="cursor-pointer font-medium text-brand-ink hover:underline"
+              className="cursor-pointer font-bold text-brand-ink hover:underline"
             >
               Choose a file
             </label>
@@ -176,26 +178,30 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       </div>
 
       {tooBig && (
-        <p role="alert" className="mt-3 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm">
-          That file is {formatSize(file!.size)}, over the {MAX_MB} MB limit. Most employer mail
-          servers cap attachments at 10 MB, so it is worth shrinking regardless.
-        </p>
+        <div role="alert" className="mt-3 flex gap-2.5 rounded-lg bg-bad-soft px-4 py-3 text-sm">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+          <p>
+            That file is {formatSize(file!.size)}, over the {MAX_MB} MB limit. Most employer mail
+            servers cap attachments at 10 MB, so it is worth shrinking regardless.
+          </p>
+        </div>
       )}
 
       {isImage && !tooBig && (
-        <p className="mt-3 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm">
-          {copy.imageNote}
-        </p>
+        <div className="mt-3 flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+          <p>{copy.imageNote}</p>
+        </div>
       )}
 
       <div className="mt-4 max-w-sm">
         <label className="text-sm">
-          <span className="mb-1 block text-muted">Your field</span>
+          <span className="mb-1 block font-semibold text-muted">Your field</span>
           <select
             value={discipline}
             onChange={(event) => setDiscipline(event.target.value)}
             disabled={pending}
-            className="w-full rounded-lg border border-line bg-surface px-3 py-2"
+            className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 focus:border-brand focus:bg-surface focus:outline-none"
           >
             <option value="">Detect automatically</option>
             {Object.entries(DISCIPLINE_LABELS).map(([key, label]) => (
@@ -254,7 +260,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       <button
         type="submit"
         disabled={!file || pending || tooBig}
-        className="btn-brand mt-4 w-full rounded-xl px-6 py-3 font-semibold disabled:cursor-not-allowed sm:w-auto"
+        className="btn-brand mt-4 h-14 w-full rounded-lg px-7 font-bold disabled:cursor-not-allowed sm:w-auto"
       >
         {pending ? (isImage ? "Reading the image…" : "Analyzing…") : copy.cta}
       </button>
@@ -265,9 +271,12 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       </p>
 
       {error && (
-        <div role="alert" className="mt-3 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm">
-          <p>{error}</p>
-          {suggestion && <p className="mt-2 text-ink-soft">{suggestion}</p>}
+        <div role="alert" className="mt-3 flex gap-2.5 rounded-lg bg-bad-soft px-4 py-3 text-sm">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+          <div>
+            <p>{error}</p>
+            {suggestion && <p className="mt-2 text-ink-soft">{suggestion}</p>}
+          </div>
         </div>
       )}
     </form>

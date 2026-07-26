@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Briefcase, FileText, Globe } from "lucide-react";
 import { UploadForm } from "./UploadForm";
 import { UrlForm } from "./UrlForm";
 
@@ -26,23 +27,27 @@ const TABS: {
   id: Tab;
   label: string;
   hint: string;
+  icon: typeof Globe;
   documentKind?: "resume" | "document";
 }[] = [
   {
     id: "url",
     label: "Website",
     hint: "yourname.dev, a Notion page, a Behance profile",
+    icon: Globe,
   },
   {
     id: "resume",
     label: "Resume",
     hint: "your CV as you send it — PDF, DOCX, or a photo of one",
+    icon: FileText,
     documentKind: "resume",
   },
   {
     id: "portfolio",
     label: "Portfolio file",
     hint: "the deck or PDF of your work — not your CV",
+    icon: Briefcase,
     documentKind: "document",
   },
 ];
@@ -57,26 +62,30 @@ export function IntakeTabs() {
       <div
         role="tablist"
         aria-label="What to analyze"
-        className="inline-flex gap-1 rounded-xl border border-line bg-surface-2 p-1"
+        className="inline-flex gap-1 rounded-lg border border-line bg-surface-2 p-1"
       >
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            role="tab"
-            type="button"
-            aria-selected={tab === entry.id}
-            aria-controls={`intake-${entry.id}`}
-            id={`tab-${entry.id}`}
-            onClick={() => setTab(entry.id)}
-            className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
-              tab === entry.id
-                ? "bg-surface text-ink shadow-[var(--shadow-sm)]"
-                : "text-muted hover:text-ink"
-            }`}
-          >
-            {entry.label}
-          </button>
-        ))}
+        {TABS.map((entry) => {
+          const Icon = entry.icon;
+          return (
+            <button
+              key={entry.id}
+              role="tab"
+              type="button"
+              aria-selected={tab === entry.id}
+              aria-controls={`intake-${entry.id}`}
+              id={`tab-${entry.id}`}
+              onClick={() => setTab(entry.id)}
+              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ${
+                tab === entry.id
+                  ? "border border-line bg-surface text-ink"
+                  : "border border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              <Icon size={15} strokeWidth={2.25} aria-hidden />
+              {entry.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="pt-5">

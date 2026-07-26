@@ -100,7 +100,7 @@ export function ReportTabs({ tabs }: { tabs: ReportTab[] }) {
         aria-label="Report sections"
         aria-orientation="horizontal"
         onKeyDown={onKeyDown}
-        className="no-print sticky top-14 z-30 -mx-4 flex gap-1 overflow-x-auto border-b border-line bg-canvas/85 px-4 py-2 backdrop-blur-md"
+        className="no-print sticky top-16 z-30 -mx-4 flex gap-1 overflow-x-auto border-b border-line bg-canvas px-4 py-2"
       >
         {tabs.map((tab) => {
           const selected = tab.id === active;
@@ -115,10 +115,10 @@ export function ReportTabs({ tabs }: { tabs: ReportTab[] }) {
               // Roving tabindex: the strip is one stop, arrows move within it.
               tabIndex={selected ? 0 : -1}
               onClick={() => select(tab.id)}
-              className={`group flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
+              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors duration-200 ${
                 selected
-                  ? "bg-surface text-ink shadow-[var(--shadow-sm)] ring-1 ring-line"
-                  : "text-muted hover:bg-surface-2 hover:text-ink"
+                  ? "border-line bg-surface-2 text-ink"
+                  : "border-transparent text-muted hover:bg-surface-2 hover:text-ink"
               }`}
             >
               {tab.label}

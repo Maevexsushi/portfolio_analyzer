@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AlertCircle } from "lucide-react";
 
 /**
  * Portfolio URL Analyzer input.
@@ -97,6 +98,11 @@ export function UrlForm({
         <label htmlFor="portfolio-url" className="sr-only">
           Portfolio URL
         </label>
+        {/*
+          Flat inputs: gray-100 fill, no border, until focus swaps to a white fill with
+          a hard 2px brand border — "no focus ring glow, just the hard border," per the
+          system. h-14 matches the button beside it so the row reads as one control.
+        */}
         <input
           id="portfolio-url"
           type="text"
@@ -109,12 +115,12 @@ export function UrlForm({
           disabled={pending}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "url-error" : undefined}
-          className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-base placeholder:text-muted disabled:opacity-60"
+          className="h-14 min-w-0 flex-1 rounded-lg border-2 border-transparent bg-surface-2 px-4 text-base placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={pending || url.trim().length === 0}
-          className="btn-brand rounded-xl px-6 py-3 font-semibold disabled:cursor-not-allowed"
+          className="btn-brand h-14 rounded-lg px-7 font-bold disabled:cursor-not-allowed"
         >
           {pending ? "Analyzing…" : "Analyze"}
         </button>
@@ -154,19 +160,22 @@ export function UrlForm({
         <div
           id="url-error"
           role="alert"
-          className="mt-3 rounded-xl border border-bad/40 bg-bad-soft px-4 py-3 text-sm text-ink"
+          className="mt-3 flex gap-2.5 rounded-lg bg-bad-soft px-4 py-3 text-sm text-ink"
         >
-          <p>{error}</p>
-          {suggestion && (
-            <button
-              type="button"
-              onClick={() => useSuggestion(suggestion)}
-              disabled={pending}
-              className="btn-brand mt-2.5 rounded-lg px-3 py-1.5 font-semibold"
-            >
-              Analyze {suggestion} instead
-            </button>
-          )}
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-bad" aria-hidden />
+          <div>
+            <p>{error}</p>
+            {suggestion && (
+              <button
+                type="button"
+                onClick={() => useSuggestion(suggestion)}
+                disabled={pending}
+                className="btn-brand mt-2.5 rounded-lg px-3 py-1.5 font-semibold"
+              >
+                Analyze {suggestion} instead
+              </button>
+            )}
+          </div>
         </div>
       )}
     </form>
