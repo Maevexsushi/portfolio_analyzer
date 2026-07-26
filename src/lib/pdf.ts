@@ -915,6 +915,40 @@ function writeResumeReport(report: ReportBuilder, result: Extract<AnyResult, { k
   report.heading("Machine readability", result.ats.score);
   for (const check of result.ats.checks) report.checkRow(check);
 
+  report.heading("Parse preview");
+  report.text(
+    "What this tool's own extraction saw, laid out as fields rather than folded into a score.",
+    { size: 8.5, color: MUTED },
+  );
+  report.gap(4);
+  const preview = result.parsePreview;
+  report.keyValueGrid([
+    ["Name", preview.name ?? "Not detected"],
+    ["Email", preview.email ?? "Not detected"],
+    ["Phone", preview.phone ?? "Not detected"],
+    ["Location", preview.location ?? "Not detected"],
+  ]);
+  if (preview.workHistory.length > 0) {
+    report.gap(4);
+    report.text("Work history", { size: 9, bold: true });
+    report.gap(2);
+    for (const entry of preview.workHistory) {
+      const line =
+        entry.title || entry.company
+          ? `${entry.title ?? "?"} — ${entry.company ?? "?"}`
+          : `${entry.raw} (title/company not confidently split)`;
+      report.text(line, { size: 9, color: INK_SOFT, x: MARGIN + 10 });
+      report.gap(2);
+    }
+  }
+  report.gap(4);
+  report.text(
+    preview.educationFound
+      ? `Education: ${preview.educationLines.join("; ") || "heading found, no lines extracted"}`
+      : "Education: no section detected",
+    { size: 8.5, color: preview.educationFound ? INK_SOFT : MARK.bad },
+  );
+
   report.heading("Experience & impact", result.experience.score);
   for (const check of result.experience.checks) report.checkRow(check);
   if (result.experience.entries.length > 0) {

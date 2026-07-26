@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { ScoreOverview } from "@/components/ScoreOverview";
 import { JobMatchOverview } from "@/components/JobMatchOverview";
+import { ParsePreviewPanel } from "@/components/panels/ParsePreviewPanel";
 import { ReanalyzeButton } from "@/components/ReanalyzeButton";
 import { ReportTabs, type ReportTab } from "@/components/ReportTabs";
 import { AiReviewPanel } from "@/components/panels/AiReviewPanel";
@@ -211,6 +212,11 @@ function tabsFor(result: AnyResult): ReportTab[] {
         score: result.ats.score,
         ...countIssues(result.ats.checks),
         content: <AtsPanel report={result.ats} />,
+      },
+      {
+        id: "parsepreview",
+        label: "Parse preview",
+        content: <ParsePreviewPanel report={result.parsePreview} />,
       },
       {
         id: "experience",

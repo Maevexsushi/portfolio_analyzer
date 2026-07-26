@@ -42,6 +42,7 @@ import { analyzeContact } from "./contact";
 import { analyzeExperience } from "./experience";
 import { analyzeLanguage } from "./language";
 import { analyzeResumeStructure } from "./sections";
+import { buildParsePreview } from "./parsepreview";
 import { generateDocumentSuggestions } from "./suggestions";
 import { analyzeDeliverability, analyzeDocumentWork, analyzePresentation } from "./work";
 
@@ -194,6 +195,7 @@ export async function analyzeUpload(
     const experience = analyzeExperience(document, profile);
     const ats = analyzeAts(document);
     const language = analyzeLanguage(document, { penaliseFirstPerson: true });
+    const parsePreview = buildParsePreview(document.lines, contact, experience, structure, skills);
 
     const breakdown = breakdownFrom(RESUME_WEIGHTS, {
       experience: {
@@ -400,6 +402,7 @@ export async function analyzeUpload(
         skills,
         ats,
         language,
+        parsePreview,
         suggestions,
         ai,
         rewrite,

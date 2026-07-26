@@ -403,6 +403,43 @@ export interface ExperienceReport {
   checks: Check[];
 }
 
+/**
+ * One role line, split the way a resume parser has to: the date substring peeled off
+ * first (already matched elsewhere), then the remainder split into title and company
+ * only when that split is unambiguous. See src/lib/document/parsepreview.ts for what
+ * "unambiguous" means and why a bad split is left null rather than guessed.
+ */
+export interface ParsePreviewEntry {
+  /** The role line exactly as extracted, before any splitting. */
+  raw: string;
+  /** Null when the line could not be confidently split into title and company. */
+  title: string | null;
+  company: string | null;
+  dateRange: string | null;
+  bulletCount: number;
+}
+
+/**
+ * What this tool's own extraction saw, laid out as fields rather than folded into
+ * checks. This is not a claim to replicate any specific ATS product's parser — it is
+ * the same class of heuristic every one of them runs, made visible, so a failure that
+ * would otherwise surface as an invisible empty field in a real application shows up
+ * here first, while there is still time to fix it.
+ */
+export interface ParsePreview {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  links: { label: string; url: string }[];
+  workHistory: ParsePreviewEntry[];
+  educationFound: boolean;
+  /** Raw lines under the Education heading, if one was found. Not parsed further. */
+  educationLines: string[];
+  skillsDeclared: string[];
+  skillsTotal: number;
+}
+
 /** Whether a machine can read this at all — invisible to the applicant, decisive for them. */
 export interface AtsReport {
   score: number;
@@ -605,6 +642,8 @@ export interface ResumeResult {
   skills: SkillsReport;
   ats: AtsReport;
   language: LanguageReport;
+  /** Deterministic, always present — no opt-in, since it costs nothing to compute. */
+  parsePreview: ParsePreview;
   suggestions: Suggestion[];
   ai: AiReview | null;
   /** An improved draft, when one was asked for and the model produced a usable one. */
