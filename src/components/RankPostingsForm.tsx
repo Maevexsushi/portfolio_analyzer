@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, Check, ChevronDown, UploadCloud, X } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
-import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { ToolResultsCard } from "@/components/ToolResultsCard";
 import { CheckList } from "@/components/viz";
 import type { JobMatchReport, JobMatchSkillEvidence } from "@/lib/types";
 
@@ -15,6 +15,11 @@ import type { JobMatchReport, JobMatchSkillEvidence } from "@/lib/types";
  * page, so the submit behaviour (POST, render inline, no `router.push`) is different
  * enough from every other upload flow that sharing the component would mean branching
  * its core contract rather than its fields.
+ *
+ * Form and results sit in their own cards side by side rather than stacked, so the
+ * reader keeps the form they just filled in — the file chosen, the postings pasted —
+ * in view at the same time as what came back from it, instead of it scrolling out of
+ * sight the moment results appear underneath.
  */
 
 const ACCEPT = ".pdf,.docx,.png,.jpg,.jpeg,.webp";
@@ -110,7 +115,7 @@ function RankedRow({ posting, rank }: { posting: RankedPosting; rank: number }) 
   }
 
   return (
-    <li className="card overflow-hidden">
+    <li className="rounded-lg border border-line overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
@@ -242,10 +247,8 @@ export function RankPostingsForm() {
   }
 
   return (
-    <div>
-      <form onSubmit={submit} className="w-full">
-        <LoadingOverlay active={pending} messages={LOADING_MESSAGES} />
-
+    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <form onSubmit={submit} className="card w-full p-5 sm:p-6">
         <div
           onDragOver={(event) => {
             event.preventDefault();
@@ -349,7 +352,7 @@ export function RankPostingsForm() {
         <button
           type="submit"
           disabled={!file || pending || tooBig || postingsText.trim().length === 0}
-          className="btn-brand mt-4 h-14 w-full rounded-lg px-7 font-bold disabled:cursor-not-allowed sm:w-auto"
+          className="btn-brand mt-4 h-14 w-full rounded-lg px-7 font-bold disabled:cursor-not-allowed"
         >
           {pending ? "Ranking…" : "Rank these postings"}
         </button>
@@ -365,46 +368,54 @@ export function RankPostingsForm() {
         )}
       </form>
 
-      {result && (
-        <div className="mt-8">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">
-              {result.postings.length} posting{result.postings.length === 1 ? "" : "s"}, ranked
-            </h2>
-            <span className="text-sm text-muted">Read as {result.discipline.label}</span>
-          </div>
-          {result.droppedCount > 0 && (
-            <p className="mb-3 text-sm text-muted">
-              Only the first 10 postings were ranked; {result.droppedCount} more were pasted in
-              and dropped.
-            </p>
-          )}
-          {result.failed.length > 0 && (
-            <div className="mb-3 flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
-              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-              <div>
-                <p className="font-semibold">
-                  {result.failed.length} link{result.failed.length === 1 ? "" : "s"} could not be
-                  fetched, and {result.failed.length === 1 ? "it isn't" : "they aren't"} included
-                  below:
-                </p>
-                <ul className="mt-1 space-y-0.5 text-ink-soft">
-                  {result.failed.map((f) => (
-                    <li key={f.url}>
-                      {f.url} — {f.error}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      <ToolResultsCard
+        pending={pending}
+        loadingMessages={LOADING_MESSAGES}
+        hasContent={result !== null}
+        idleTitle="Your ranked postings will appear here"
+        idleBody="Choose a resume and paste in the postings you want ranked against it."
+      >
+        {result && (
+          <div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">
+                {result.postings.length} posting{result.postings.length === 1 ? "" : "s"}, ranked
+              </h2>
+              <span className="text-sm text-muted">Read as {result.discipline.label}</span>
             </div>
-          )}
-          <ul className="space-y-2">
-            {result.postings.map((posting, rank) => (
-              <RankedRow key={posting.index} posting={posting} rank={rank + 1} />
-            ))}
-          </ul>
-        </div>
-      )}
+            {result.droppedCount > 0 && (
+              <p className="mb-3 text-sm text-muted">
+                Only the first 10 postings were ranked; {result.droppedCount} more were pasted in
+                and dropped.
+              </p>
+            )}
+            {result.failed.length > 0 && (
+              <div className="mb-3 flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+                <div>
+                  <p className="font-semibold">
+                    {result.failed.length} link{result.failed.length === 1 ? "" : "s"} could not
+                    be fetched, and {result.failed.length === 1 ? "it isn't" : "they aren't"}{" "}
+                    included below:
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-ink-soft">
+                    {result.failed.map((f) => (
+                      <li key={f.url}>
+                        {f.url} — {f.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            <ul className="space-y-2">
+              {result.postings.map((posting, rank) => (
+                <RankedRow key={posting.index} posting={posting} rank={rank + 1} />
+              ))}
+            </ul>
+          </div>
+        )}
+      </ToolResultsCard>
     </div>
   );
 }

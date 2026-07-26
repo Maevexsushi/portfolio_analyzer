@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { ToolResultsCard } from "@/components/ToolResultsCard";
 import type { CompanyBrief } from "@/lib/types";
 
 /**
@@ -11,6 +11,9 @@ import type { CompanyBrief } from "@/lib/types";
  * The form only ever takes URLs, never a company name — there is no search behind this,
  * so it has nothing to look up from a name alone. What it fetches is exactly what it
  * reads, and the result says exactly which pages that was.
+ *
+ * Form and results sit in their own cards side by side rather than stacked, so the
+ * pages just pasted in stay in view next to what came back from reading them.
  */
 
 const MIN_LOADING_MS = 5000;
@@ -89,10 +92,8 @@ export function CompanyBriefForm() {
   }
 
   return (
-    <div>
-      <form onSubmit={submit} className="w-full">
-        <LoadingOverlay active={pending} messages={LOADING_MESSAGES} />
-
+    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <form onSubmit={submit} className="card w-full p-5 sm:p-6">
         <label className="text-sm" htmlFor="brief-urls">
           <span className="mb-1 block font-semibold text-muted">Company pages</span>
         </label>
@@ -113,7 +114,7 @@ export function CompanyBriefForm() {
         <button
           type="submit"
           disabled={pending || urls.length === 0}
-          className="btn-brand mt-4 h-14 w-full rounded-lg px-7 font-bold disabled:cursor-not-allowed sm:w-auto"
+          className="btn-brand mt-4 h-14 w-full rounded-lg px-7 font-bold disabled:cursor-not-allowed"
         >
           {pending ? "Reading…" : "Build a briefing"}
         </button>
@@ -126,60 +127,68 @@ export function CompanyBriefForm() {
         )}
       </form>
 
-      {result && (
-        <div className="mt-8 space-y-6">
-          {result.failed.length > 0 && (
-            <div className="flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
-              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-              <div>
-                <p className="font-semibold">
-                  {result.failed.length} page{result.failed.length === 1 ? "" : "s"} could not be
-                  fetched, and the briefing below does not include them:
-                </p>
-                <ul className="mt-1 space-y-0.5 text-ink-soft">
-                  {result.failed.map((f) => (
-                    <li key={f.url}>
-                      {f.url} — {f.error}
-                    </li>
-                  ))}
-                </ul>
+      <ToolResultsCard
+        pending={pending}
+        loadingMessages={LOADING_MESSAGES}
+        hasContent={result !== null}
+        idleTitle="Your briefing will appear here"
+        idleBody="Paste a company's homepage, About, or Careers page to get started."
+      >
+        {result && (
+          <div className="space-y-6">
+            {result.failed.length > 0 && (
+              <div className="flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+                <div>
+                  <p className="font-semibold">
+                    {result.failed.length} page{result.failed.length === 1 ? "" : "s"} could not
+                    be fetched, and the briefing below does not include them:
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-ink-soft">
+                    {result.failed.map((f) => (
+                      <li key={f.url}>
+                        {f.url} — {f.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div>
-            <h2 className="text-lg font-semibold">What they do</h2>
-            <p className="mt-1 text-ink-soft">{result.brief.whatTheyDo}</p>
+            <div>
+              <h2 className="text-lg font-semibold">What they do</h2>
+              <p className="mt-1 text-ink-soft">{result.brief.whatTheyDo}</p>
+            </div>
+
+            {result.brief.focusAreas.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-lg font-semibold">Focus areas</h2>
+                <HighlightList items={result.brief.focusAreas} />
+              </div>
+            )}
+
+            {result.brief.cultureSignals.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-lg font-semibold">What they say about how they work</h2>
+                <HighlightList items={result.brief.cultureSignals} />
+              </div>
+            )}
+
+            {result.brief.notes.length > 0 && (
+              <ul className="space-y-1 text-sm text-muted">
+                {result.brief.notes.map((note) => (
+                  <li key={note}>— {note}</li>
+                ))}
+              </ul>
+            )}
+
+            <p className="border-t border-line pt-3 text-xs text-muted">
+              Built by {result.brief.model} from what these pages say about themselves, not an
+              independent account of the company: {result.brief.sourceUrls.join(", ")}.
+            </p>
           </div>
-
-          {result.brief.focusAreas.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-lg font-semibold">Focus areas</h2>
-              <HighlightList items={result.brief.focusAreas} />
-            </div>
-          )}
-
-          {result.brief.cultureSignals.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-lg font-semibold">What they say about how they work</h2>
-              <HighlightList items={result.brief.cultureSignals} />
-            </div>
-          )}
-
-          {result.brief.notes.length > 0 && (
-            <ul className="space-y-1 text-sm text-muted">
-              {result.brief.notes.map((note) => (
-                <li key={note}>— {note}</li>
-              ))}
-            </ul>
-          )}
-
-          <p className="border-t border-line pt-3 text-xs text-muted">
-            Built by {result.brief.model} from what these pages say about themselves, not an
-            independent account of the company: {result.brief.sourceUrls.join(", ")}.
-          </p>
-        </div>
-      )}
+        )}
+      </ToolResultsCard>
     </div>
   );
 }

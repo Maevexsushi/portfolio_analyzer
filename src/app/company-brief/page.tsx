@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function CompanyBriefPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="mx-auto max-w-5xl px-4 py-12">
       <Link href="/job-match" className="text-sm text-brand-ink hover:underline">
         ← Back to Job match
       </Link>
@@ -23,7 +23,7 @@ export default function CompanyBriefPage() {
         feed behind this: it reads exactly the pages you give it, nothing else, and says so.
       </p>
 
-      <div className="card mt-8 p-5 sm:p-6">
+      <div className="mt-8">
         <CompanyBriefForm />
       </div>
     </div>
