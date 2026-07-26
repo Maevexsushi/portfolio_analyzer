@@ -125,28 +125,28 @@ export default async function HomePage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4">
-        <section className="pt-16 pb-10 sm:pt-24">
-          <h1 className="max-w-3xl text-4xl leading-[1.05] font-extrabold tracking-[-0.02em] text-balance sm:text-6xl">
+        <section className="pt-16 pb-10 text-center sm:pt-24">
+          <h1 className="mx-auto max-w-3xl text-4xl leading-[1.05] font-extrabold tracking-[-0.02em] text-balance sm:text-6xl">
             Find out what a hiring reviewer sees{" "}
             <span style={{ color: "var(--color-brand-ink)" }}>in your work</span>.
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft text-pretty">
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft text-pretty">
             Pick what you are checking — a website, your resume, or a portfolio file — and get a
             scored report on what is missing, how deep the work reads, and what to fix first. Each
             one is judged against its own standards, and against your field, whatever that field
             is.
           </p>
 
-          <div className="card mt-9 max-w-2xl p-5 sm:p-6">
+          <div className="card mx-auto mt-9 max-w-2xl p-5 text-left sm:p-6">
             <IntakeTabs />
           </div>
 
           {recent.length > 0 && (
-            <div className="mt-8">
+            <div className="mx-auto mt-8 max-w-2xl text-left">
               <p className="mb-2 text-xs font-bold tracking-wider text-muted uppercase">
                 Recent analyses
               </p>
-              <ul className="flex flex-wrap gap-2">
+              <ul className="flex flex-wrap justify-center gap-2 sm:justify-start">
                 {recent.map((entry) => (
                   <li key={entry.id}>
                     <Link
