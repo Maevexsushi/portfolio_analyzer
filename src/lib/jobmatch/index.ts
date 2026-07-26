@@ -1,4 +1,4 @@
-import type { Check, JobMatchReport, SkillFinding } from "@/lib/types";
+import type { Check, JobMatchReport, JobMatchSkillEvidence, SkillFinding } from "@/lib/types";
 import type { DisciplineProfile } from "@/lib/discipline/types";
 import { composeVocabulary, matchSkills } from "@/lib/discipline/skills";
 
@@ -116,6 +116,17 @@ function skillNames(findings: SkillFinding[]): Set<string> {
   return new Set(findings.map((finding) => finding.name));
 }
 
+/** Looks up the resume's own finding for a matched skill, so the match carries evidence. */
+function evidenceFor(
+  matched: SkillFinding[],
+  resumeByName: Map<string, SkillFinding>,
+): JobMatchSkillEvidence[] {
+  return matched.map((skill) => {
+    const found = resumeByName.get(skill.name);
+    return { name: skill.name, mentions: found?.mentions ?? 0, declared: found?.declared ?? false };
+  });
+}
+
 export interface JobMatchInput {
   jobDescriptionText: string;
   /** The resume's own detected field — reused so both sides are read with one vocabulary. */
@@ -128,6 +139,7 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
   const { jobDescriptionText, profile, resumeSkills } = input;
   const vocabulary = composeVocabulary(profile);
   const resumeNames = skillNames(resumeSkills);
+  const resumeByName = new Map(resumeSkills.map((finding) => [finding.name, finding]));
 
   const zones = splitJobDescriptionZones(jobDescriptionText);
   const lower = jobDescriptionText.toLowerCase();
@@ -149,14 +161,23 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
   // A skill named in both zones counts once, as required — the stronger ask wins.
   const preferredSkills = preferredSkillsRaw.filter((skill) => !requiredNames.has(skill.name));
 
-  const matchedRequired = requiredSkills.filter((skill) => resumeNames.has(skill.name)).map((s) => s.name);
-  const missingRequired = requiredSkills.filter((skill) => !resumeNames.has(skill.name)).map((s) => s.name);
-  const matchedPreferred = preferredSkills.filter((skill) => resumeNames.has(skill.name)).map((s) => s.name);
+  const matchedRequiredSkills = requiredSkills.filter((skill) => resumeNames.has(skill.name));
+  const missingRequired = requiredSkills
+    .filter((skill) => !resumeNames.has(skill.name))
+    .map((s) => s.name);
+  const matchedPreferredSkills = preferredSkills.filter((skill) => resumeNames.has(skill.name));
   const missingPreferred = preferredSkills
     .filter((skill) => !resumeNames.has(skill.name))
     .map((s) => s.name);
 
+  const matchedRequired = evidenceFor(matchedRequiredSkills, resumeByName);
+  const matchedPreferred = evidenceFor(matchedPreferredSkills, resumeByName);
+
   const totalDetected = requiredSkills.length + preferredSkills.length;
+  // Required carries most of the weight; a posting with no preferred section at all
+  // still scores purely on required coverage rather than being capped below 100.
+  const requiredWeight = requiredSkills.length > 0 ? 0.82 : 0.6;
+  const preferredWeight = requiredSkills.length > 0 ? 0.18 : 0.4;
 
   const checks: Check[] = [];
 
@@ -171,6 +192,8 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
     return {
       score: null,
       jobTitle: guessJobTitle(jobDescriptionText),
+      requiredWeight,
+      preferredWeight,
       matchedRequired: [],
       missingRequired: [],
       matchedPreferred: [],
@@ -183,10 +206,7 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
     requiredSkills.length > 0 ? matchedRequired.length / requiredSkills.length : 1;
   const preferredCoverage =
     preferredSkills.length > 0 ? matchedPreferred.length / preferredSkills.length : 1;
-  // Required carries most of the weight; a posting with no preferred section at all
-  // still scores purely on required coverage rather than being capped below 100.
-  const score = Math.round(100 * (requiredSkills.length > 0 ? 0.82 : 0.6) * requiredCoverage
-    + 100 * (requiredSkills.length > 0 ? 0.18 : 0.4) * preferredCoverage);
+  const score = Math.round(100 * requiredWeight * requiredCoverage + 100 * preferredWeight * preferredCoverage);
 
   checks.push({
     id: "jobmatch-required",
@@ -196,7 +216,7 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
       requiredSkills.length === 0
         ? "No section of the posting reads as a required-skills list — only preferred/bonus terms were found."
         : missingRequired.length === 0
-          ? `All ${requiredSkills.length} required skill${requiredSkills.length === 1 ? "" : "s"} this posting names are evidenced in your resume: ${matchedRequired.join(", ")}.`
+          ? `All ${requiredSkills.length} required skill${requiredSkills.length === 1 ? "" : "s"} this posting names are evidenced in your resume: ${matchedRequired.map((s) => s.name).join(", ")}.`
           : `Missing ${missingRequired.length} of ${requiredSkills.length} required skills: ${missingRequired.join(", ")}. Only add ones you genuinely have — this checks whether they are on the page, not whether you should invent them.`,
   });
 
@@ -207,7 +227,7 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
       status: missingPreferred.length === 0 ? "pass" : "warn",
       detail:
         missingPreferred.length === 0
-          ? `All ${preferredSkills.length} preferred skill${preferredSkills.length === 1 ? "" : "s"} are covered too: ${matchedPreferred.join(", ")}.`
+          ? `All ${preferredSkills.length} preferred skill${preferredSkills.length === 1 ? "" : "s"} are covered too: ${matchedPreferred.map((s) => s.name).join(", ")}.`
           : `${missingPreferred.length} of ${preferredSkills.length} preferred (not required) skills are not evidenced: ${missingPreferred.join(", ")}.`,
     });
   }
@@ -215,6 +235,8 @@ export function analyzeJobMatch(input: JobMatchInput): JobMatchReport {
   return {
     score,
     jobTitle: guessJobTitle(jobDescriptionText),
+    requiredWeight,
+    preferredWeight,
     matchedRequired,
     missingRequired,
     matchedPreferred,

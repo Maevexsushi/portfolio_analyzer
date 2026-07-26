@@ -554,14 +554,26 @@ export interface CoverLetterDraft {
  * the same resume's score swing on which JD happened to be pasted in. It gets its own
  * score and its own tab instead, the same way the AI review sits outside the breakdown.
  */
+/** A matched skill, with the evidence for it pulled from the resume's own skill findings. */
+export interface JobMatchSkillEvidence {
+  name: string;
+  /** Times it appears in the resume's text. */
+  mentions: number;
+  /** True when it appeared inside a detected skills section or tag list, not just prose. */
+  declared: boolean;
+}
+
 export interface JobMatchReport {
   /** Null when the pasted text yielded no recognisable skills to match against. */
   score: number | null;
   /** First line of the pasted text, shown back so the reader can confirm what was read. */
   jobTitle: string | null;
-  matchedRequired: string[];
+  /** How much of the score required vs. preferred coverage contributes, out of 1. */
+  requiredWeight: number;
+  preferredWeight: number;
+  matchedRequired: JobMatchSkillEvidence[];
   missingRequired: string[];
-  matchedPreferred: string[];
+  matchedPreferred: JobMatchSkillEvidence[];
   missingPreferred: string[];
   checks: Check[];
 }

@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { analyzeJobMatch, guessJobTitle, splitJobDescriptionZones } from "@/lib/jobmatch";
 import { profileFor } from "@/lib/discipline/profiles";
 import { composeVocabulary, matchSkills } from "@/lib/discipline/skills";
-import type { SkillFinding } from "@/lib/types";
+import type { JobMatchSkillEvidence, SkillFinding } from "@/lib/types";
 import { SOFTWARE_PROFILE } from "./helpers";
+
+/** Matched skills carry evidence (mentions, declared) now, not just a bare name. */
+function names(matched: JobMatchSkillEvidence[]): string[] {
+  return matched.map((skill) => skill.name);
+}
 
 /*
  * Job matching is deliberately the plainest kind of check in the project: does a named
@@ -103,7 +108,7 @@ describe("matching a resume against a posting", () => {
 
     expect(report.missingRequired).toContain("Docker");
     expect(report.missingRequired).toContain("Kubernetes");
-    expect(report.matchedRequired).toContain("Python");
+    expect(names(report.matchedRequired)).toContain("Python");
   });
 
   it("never fails the whole match for an uncovered preferred skill", () => {
@@ -164,8 +169,8 @@ describe("matching a resume against a posting", () => {
       resumeSkills,
     });
 
-    expect(report.matchedRequired).toContain("Docker");
-    expect(report.matchedPreferred).not.toContain("Docker");
+    expect(names(report.matchedRequired)).toContain("Docker");
+    expect(names(report.matchedPreferred)).not.toContain("Docker");
   });
 
   it("works against a non-software field's own vocabulary", () => {
@@ -178,7 +183,45 @@ describe("matching a resume against a posting", () => {
     );
 
     const report = analyzeJobMatch({ jobDescriptionText: jd, profile: designProfile, resumeSkills });
-    expect(report.matchedRequired).toContain("Figma");
+    expect(names(report.matchedRequired)).toContain("Figma");
     expect(report.missingRequired).toContain("Sketch");
+  });
+
+  /*
+   * A matched skill is not just a checkmark — it carries the resume's own evidence for
+   * it, so the reader can tell "declared in a skills list" from "mentioned once in
+   * passing" without having to trust the match blindly.
+   */
+  it("carries the resume's own mention count and declared status on a match", () => {
+    const resumeSkills = matchSkills(
+      "built production services in python and go. deployed with docker and kubernetes on postgresql. python python.".toLowerCase(),
+      "python, go, docker".toLowerCase(),
+      composeVocabulary(SOFTWARE_PROFILE),
+    );
+
+    const report = analyzeJobMatch({
+      jobDescriptionText: JD_WITH_ZONES,
+      profile: SOFTWARE_PROFILE,
+      resumeSkills,
+    });
+
+    const python = report.matchedRequired.find((s) => s.name === "Python");
+    const postgres = report.matchedRequired.find((s) => s.name === "PostgreSQL");
+
+    expect(python?.declared).toBe(true);
+    expect(python?.mentions).toBeGreaterThanOrEqual(3);
+    // Not in the declaredText passed above, so it is evidenced only from prose.
+    expect(postgres?.declared).toBe(false);
+  });
+
+  it("weights required coverage above preferred when both sections exist", () => {
+    const report = analyzeJobMatch({
+      jobDescriptionText: JD_WITH_ZONES,
+      profile: SOFTWARE_PROFILE,
+      resumeSkills: resumeSkillsFrom("Python, Go, Docker."),
+    });
+
+    expect(report.requiredWeight).toBeGreaterThan(report.preferredWeight);
+    expect(report.requiredWeight + report.preferredWeight).toBeCloseTo(1);
   });
 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, UploadCloud } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 import type { DisciplineKey } from "@/lib/types";
 
 /**
@@ -41,6 +42,31 @@ const COPY: Record<DocumentKind, { noun: string; cta: string; imageNote: string 
     imageNote:
       "A single image can only ever be one page of a portfolio, and nothing in it is searchable or clickable. It will be read here with OCR, but a PDF is what you should be sending.",
   },
+};
+
+/** However long the real work takes, the overlay stays up at least this long — a wait
+ * that resolves in under a second reads as broken, not as fast. */
+const MIN_LOADING_MS = 5000;
+
+const LOADING_MESSAGES: Record<"resume" | "document" | "jobmatch", readonly string[]> = {
+  resume: [
+    "Reading your resume…",
+    "Checking structure and formatting…",
+    "Scoring experience and impact…",
+    "Putting the report together…",
+  ],
+  document: [
+    "Reading your file…",
+    "Reviewing the work…",
+    "Checking presentation and deliverability…",
+    "Putting the report together…",
+  ],
+  jobmatch: [
+    "Reading your resume…",
+    "Matching required skills against the posting…",
+    "Checking preferred skills…",
+    "Reviewing your cover letter…",
+  ],
 };
 
 function formatSize(bytes: number): string {
@@ -99,6 +125,7 @@ export function UploadForm({
     setError(null);
     setSuggestion(null);
     setPending(true);
+    const startedAt = Date.now();
 
     try {
       const body = new FormData();
@@ -128,6 +155,13 @@ export function UploadForm({
         setSuggestion(data.suggestion ?? null);
         return;
       }
+
+      // The overlay stays up at least MIN_LOADING_MS regardless of how fast the real
+      // work finished — only on the success path, so an error never makes someone wait
+      // out a countdown to see the thing that went wrong.
+      const remaining = MIN_LOADING_MS - (Date.now() - startedAt);
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+
       router.push(`/r/${data.result.id}`);
     } catch {
       setError("Could not reach the analyzer. Is the server still running?");
@@ -138,6 +172,10 @@ export function UploadForm({
 
   return (
     <form onSubmit={submit} className="w-full">
+      <LoadingOverlay
+        active={pending}
+        messages={LOADING_MESSAGES[jobMatchMode ? "jobmatch" : documentKind]}
+      />
       <div
         onDragOver={(event) => {
           event.preventDefault();

@@ -818,18 +818,29 @@ function writeJobMatchReport(
       report.text(`Matched against: "${jobMatch.jobTitle}"`, { size: 9.5, color: INK_SOFT });
       report.gap(4);
     }
-    if (jobMatch.matchedRequired.length + jobMatch.missingRequired.length > 0) {
-      report.text("Required skills", { size: 9, bold: true });
+    report.text(
+      `Required skills carry ${Math.round(jobMatch.requiredWeight * 100)}% of this score, preferred skills the other ${Math.round(jobMatch.preferredWeight * 100)}%.`,
+      { size: 8.5, color: MUTED },
+    );
+    report.gap(6);
+
+    const skillSection = (label: string, matched: typeof jobMatch.matchedRequired, missing: string[]) => {
+      const total = matched.length + missing.length;
+      if (total === 0) return;
+      report.text(`${label} (${matched.length}/${total})`, { size: 9, bold: true });
       report.gap(2);
-      report.chips(jobMatch.matchedRequired, true);
-      if (jobMatch.missingRequired.length > 0) {
-        report.text(`Missing: ${jobMatch.missingRequired.join(", ")}`, {
-          size: 8.5,
-          color: MARK.bad,
-        });
-        report.gap(4);
+      report.chips(
+        matched.map((s) => (s.declared ? `${s.name} * (${s.mentions}x)` : `${s.name} (${s.mentions}x)`)),
+        true,
+      );
+      if (missing.length > 0) {
+        report.text(`Missing: ${missing.join(", ")}`, { size: 8.5, color: MARK.bad });
       }
-    }
+      report.gap(4);
+    };
+    skillSection("Required skills", jobMatch.matchedRequired, jobMatch.missingRequired);
+    skillSection("Preferred skills", jobMatch.matchedPreferred, jobMatch.missingPreferred);
+
     for (const check of jobMatch.checks) report.checkRow(check);
   }
 
