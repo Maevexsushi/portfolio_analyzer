@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { ExtractError, extractDocument, MAX_UPLOAD_BYTES } from "@/lib/intake";
+import { FetchError, fetchPage } from "@/lib/fetcher";
+import { buildContext } from "@/lib/analyzer/context";
 import { detectDiscipline } from "@/lib/discipline/detect";
 import { DISCIPLINE_ORDER, profileFor } from "@/lib/discipline/profiles";
 import { composeVocabulary, matchSkills, skillsRegionFromLines } from "@/lib/discipline/skills";
-import { rankPostings, splitPostings } from "@/lib/jobmatch/rank";
+import { isPostingUrl, rankPostings, splitPostings, type ResolvedPosting } from "@/lib/jobmatch/rank";
 import type { DisciplineKey } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -34,6 +36,45 @@ const STATUS_BY_CODE: Record<string, number> = {
   "no-text": 422,
   "ocr-failed": 500,
 };
+
+export interface FailedPostingFetch {
+  url: string;
+  error: string;
+}
+
+/**
+ * Resolves each split chunk into the posting text to actually match against: fetched
+ * fresh through the same SSRF-guarded fetcher the website analyzer uses when the whole
+ * chunk is a bare link, or used as-is when it is pasted text. Fetches run concurrently
+ * — nobody should wait out ten sequential 15-second timeouts because one link hung —
+ * and a page that fails to fetch is reported by name rather than silently dropping the
+ * whole request; ranking still runs on whatever did resolve.
+ */
+async function resolvePostings(
+  chunks: string[],
+): Promise<{ resolved: ResolvedPosting[]; failed: FailedPostingFetch[] }> {
+  const settled = await Promise.all(
+    chunks.map(async (chunk): Promise<ResolvedPosting | FailedPostingFetch> => {
+      if (!isPostingUrl(chunk)) return { text: chunk, sourceUrl: null };
+      try {
+        const fetched = await fetchPage(chunk);
+        const context = buildContext(fetched);
+        return { text: context.text, sourceUrl: context.finalUrl };
+      } catch (error) {
+        const message = error instanceof FetchError ? error.message : "Could not fetch that page.";
+        return { url: chunk, error: message };
+      }
+    }),
+  );
+
+  const resolved: ResolvedPosting[] = [];
+  const failed: FailedPostingFetch[] = [];
+  for (const item of settled) {
+    if ("text" in item) resolved.push(item);
+    else failed.push(item);
+  }
+  return { resolved, failed };
+}
 
 function asDiscipline(value: unknown): DisciplineKey | null {
   return typeof value === "string" && (DISCIPLINE_ORDER as string[]).includes(value)
@@ -68,14 +109,22 @@ export async function POST(request: Request) {
 
   const postingsRaw = form.get("postings");
   const postingsText = typeof postingsRaw === "string" ? postingsRaw.slice(0, MAX_POSTINGS_TEXT) : "";
-  const { postings, droppedCount } = splitPostings(postingsText);
-  if (postings.length === 0) {
+  const { postings: chunks, droppedCount } = splitPostings(postingsText);
+  if (chunks.length === 0) {
     return NextResponse.json(
       {
         error:
-          "Paste at least one job posting. Separate several with a line of three or more dashes (---).",
+          "Paste at least one job posting, or its link. Separate several with a line of three or more dashes (---).",
       },
       { status: 400 },
+    );
+  }
+
+  const { resolved, failed } = await resolvePostings(chunks);
+  if (resolved.length === 0) {
+    return NextResponse.json(
+      { error: "None of the posting links given could be fetched.", failed },
+      { status: 502 },
     );
   }
 
@@ -94,11 +143,12 @@ export async function POST(request: Request) {
       composeVocabulary(profile),
     );
 
-    const ranked = rankPostings(postings, profile, resumeSkills);
+    const ranked = rankPostings(resolved, profile, resumeSkills);
 
     return NextResponse.json({
       discipline: { key: discipline.key, label: discipline.label },
       droppedCount,
+      failed,
       postings: ranked,
     });
   } catch (error) {

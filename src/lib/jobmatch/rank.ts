@@ -36,11 +36,31 @@ export function splitPostings(text: string): SplitPostingsResult {
   };
 }
 
+/**
+ * A posting chunk that is nothing but a URL, start to finish. This is deliberately
+ * strict — the whole trimmed chunk has to be one link with an explicit http(s) scheme,
+ * not just contain one — so an ordinary pasted posting that happens to mention a URL is
+ * never misread as "fetch this page instead of reading what was pasted."
+ */
+const BARE_URL = /^https?:\/\/\S+$/i;
+
+export function isPostingUrl(posting: string): boolean {
+  return BARE_URL.test(posting.trim());
+}
+
 export interface RankedPosting {
   /** Position in the pasted text, for a stable label when no title could be read. */
   index: number;
   jobTitle: string | null;
+  /** The URL this posting was fetched from, when it was given as a link rather than pasted text. */
+  sourceUrl: string | null;
   jobMatch: JobMatchReport;
+}
+
+export interface ResolvedPosting {
+  text: string;
+  /** Null when this posting was pasted as text rather than fetched from a URL. */
+  sourceUrl: string | null;
 }
 
 /**
@@ -50,14 +70,15 @@ export interface RankedPosting {
  * evaluated-and-failed, and those are different things worth keeping visually apart.
  */
 export function rankPostings(
-  postings: string[],
+  postings: ResolvedPosting[],
   profile: DisciplineProfile,
   resumeSkills: SkillFinding[],
 ): RankedPosting[] {
-  const ranked = postings.map((jobDescriptionText, index) => ({
+  const ranked = postings.map((posting, index) => ({
     index,
-    jobTitle: guessJobTitle(jobDescriptionText),
-    jobMatch: analyzeJobMatch({ jobDescriptionText, profile, resumeSkills }),
+    jobTitle: guessJobTitle(posting.text),
+    sourceUrl: posting.sourceUrl,
+    jobMatch: analyzeJobMatch({ jobDescriptionText: posting.text, profile, resumeSkills }),
   }));
 
   return ranked.sort((a, b) => {

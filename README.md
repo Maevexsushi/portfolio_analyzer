@@ -393,6 +393,14 @@ back to. A posting with nothing recognisable in it sorts last with an honest "no
 never as a last-place zero — it was not evaluated, not evaluated-and-failed, and a
 ranked list that conflated the two would be lying about what it actually checked.
 
+Each posting can be pasted in full, or just its link — a chunk between the `---` lines
+is fetched (through the same SSRF-guarded fetcher the website analyzer uses) only when
+it is nothing but a bare URL with an explicit `http(s)://` scheme, start to finish;
+anything else, including a paragraph that happens to mention a link, is read as the
+posting itself. Fetches run concurrently, so ten links do not mean waiting out ten
+sequential timeouts, and a link that fails to fetch is reported by name — the rest of
+the postings still get ranked rather than the whole request failing over one dead link.
+
 ### Skill-gap notes
 
 Tick "Explain the skills I'm missing" and every skill Job Match flagged as absent
@@ -530,7 +538,8 @@ GET    /api/report/:id    -> application/pdf (the full report)
 GET    /api/rewrite/:id   -> application/pdf (the improved draft, if one was requested)
 GET    /api/cover-letter/:id -> application/pdf (the drafted cover letter, if one was requested)
 POST   /api/jobmatch/rank multipart: file, discipline?, postings (postings separated by a
-                          `---` line, up to 10) -> { discipline, droppedCount, postings }
+                          `---` line, up to 10 — each one pasted text or a bare posting
+                          link) -> { discipline, droppedCount, failed, postings }
                           — nothing here is saved; see Ranking several postings
 POST   /api/company-brief { urls: string[] } (up to 3) -> { brief, failed }
                           — fetched fresh every time, nothing here is saved either
@@ -630,8 +639,10 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
 - **Ranking postings** — splitting on a `---` line does not also split on a hyphenated
   word or an em dash inside a line; blank chunks from a doubled delimiter are dropped;
   more than 10 postings are capped with the overflow reported rather than silently
-  truncated; and a posting with no recognisable skills sorts last with a null score,
-  never as a last-place zero.
+  truncated; a posting with no recognisable skills sorts last with a null score, never
+  as a last-place zero; and a chunk that is only a bare link is recognised as one to
+  fetch, while a paragraph merely mentioning a link, or a bare domain with no scheme,
+  is correctly read as pasted text instead.
 - **Company briefing** — the digest carries only the pages actually fetched, capped at
   three and truncated per page so one long site cannot blow the context window; and
   normalization drops a highlight with no supporting line behind it, the same guard the

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertCircle, Check, ChevronDown, UploadCloud, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, ChevronDown, UploadCloud, X } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import type { JobMatchSkillEvidence } from "@/lib/types";
@@ -22,7 +22,7 @@ const MIN_LOADING_MS = 5000;
 
 const LOADING_MESSAGES = [
   "Reading your resume…",
-  "Splitting the postings you pasted…",
+  "Fetching any posting links you gave…",
   "Matching skills against each one…",
   "Ranking by fit…",
 ] as const;
@@ -30,6 +30,7 @@ const LOADING_MESSAGES = [
 interface RankedPosting {
   index: number;
   jobTitle: string | null;
+  sourceUrl: string | null;
   jobMatch: {
     score: number | null;
     matchedRequired: JobMatchSkillEvidence[];
@@ -39,9 +40,15 @@ interface RankedPosting {
   };
 }
 
+interface FailedFetch {
+  url: string;
+  error: string;
+}
+
 interface RankResponse {
   discipline: { key: string; label: string };
   droppedCount: number;
+  failed: FailedFetch[];
   postings: RankedPosting[];
 }
 
@@ -101,12 +108,13 @@ function RankedRow({ posting, rank }: { posting: RankedPosting; rank: number }) 
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">
-            {posting.jobTitle ?? `Posting ${posting.index + 1}`}
+            {posting.jobTitle ?? posting.sourceUrl ?? `Posting ${posting.index + 1}`}
           </p>
-          <p className="text-xs text-muted">
+          <p className="truncate text-xs text-muted">
             {totalRequired > 0
               ? `${jobMatch.matchedRequired.length}/${totalRequired} required · ${jobMatch.matchedPreferred.length}/${totalPreferred} preferred`
               : "Nothing recognisable could be pulled from this posting"}
+            {posting.jobTitle && posting.sourceUrl ? ` · fetched from ${posting.sourceUrl}` : ""}
           </p>
         </div>
         {jobMatch.score !== null ? (
@@ -301,10 +309,13 @@ export function RankPostingsForm() {
             onChange={(event) => setPostingsText(event.target.value)}
             disabled={pending}
             rows={10}
-            placeholder={"Paste each job posting in full. Separate more than one with a line of dashes:\n\nFirst posting text...\n\n---\n\nSecond posting text..."}
+            placeholder={"Paste the full text of each posting, or just its link. Separate more than one with a line of dashes:\n\nhttps://acme.example/jobs/123\n\n---\n\nSecond posting, pasted in full..."}
             className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 text-sm placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none"
           />
-          <p className="mt-1 text-xs text-muted">Up to 10 postings. Nothing here is saved.</p>
+          <p className="mt-1 text-xs text-muted">
+            A line that is only a link (starting with http:// or https://) is fetched; anything
+            else is used as pasted text. Up to 10 postings. Nothing here is saved.
+          </p>
         </div>
 
         <button
@@ -339,6 +350,25 @@ export function RankPostingsForm() {
               Only the first 10 postings were ranked; {result.droppedCount} more were pasted in
               and dropped.
             </p>
+          )}
+          {result.failed.length > 0 && (
+            <div className="mb-3 flex gap-2.5 rounded-lg bg-warn-soft px-4 py-3 text-sm">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <div>
+                <p className="font-semibold">
+                  {result.failed.length} link{result.failed.length === 1 ? "" : "s"} could not be
+                  fetched, and {result.failed.length === 1 ? "it isn't" : "they aren't"} included
+                  below:
+                </p>
+                <ul className="mt-1 space-y-0.5 text-ink-soft">
+                  {result.failed.map((f) => (
+                    <li key={f.url}>
+                      {f.url} — {f.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
           <ul className="space-y-2">
             {result.postings.map((posting, rank) => (
