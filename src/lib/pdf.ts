@@ -842,6 +842,18 @@ function writeJobMatchReport(
     skillSection("Preferred skills", jobMatch.matchedPreferred, jobMatch.missingPreferred);
 
     for (const check of jobMatch.checks) report.checkRow(check);
+
+    if (result.skillGapNotes && result.skillGapNotes.length > 0) {
+      report.gap(6);
+      report.text("Closing the gap", { size: 9, bold: true });
+      report.gap(2);
+      for (const note of result.skillGapNotes) {
+        report.text(note.skill, { size: 9, bold: true });
+        report.text(note.whatItIs, { size: 8.5, color: INK_SOFT, x: MARGIN + 10 });
+        report.text(note.howToLearn, { size: 8.5, color: MUTED, x: MARGIN + 10 });
+        report.gap(4);
+      }
+    }
   }
 
   const { coverLetter, coverLetterDraft } = result;

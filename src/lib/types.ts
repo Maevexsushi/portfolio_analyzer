@@ -578,6 +578,14 @@ export interface JobMatchReport {
   checks: Check[];
 }
 
+/** What a missing skill actually is, and a general, honest way to start closing the gap. */
+export interface SkillGapNote {
+  skill: string;
+  whatItIs: string;
+  /** Never a specific course, book, or URL — see src/lib/ai/skillgap.ts's module comment. */
+  howToLearn: string;
+}
+
 export interface ResumeResult {
   kind: "resume";
   /** "jobmatch" reports came from the dedicated Job Match page — see AnalyzeFileOptions. */
@@ -603,6 +611,8 @@ export interface ResumeResult {
   rewrite: ResumeRewrite | null;
   /** Present only when a job description was pasted in alongside the resume. */
   jobMatch: JobMatchReport | null;
+  /** Explanations for the missing skills Job Match found, when requested and produced. */
+  skillGapNotes: SkillGapNote[] | null;
   /** Present only when a cover letter was pasted in, reviewed against this resume. */
   coverLetter: CoverLetterReport | null;
   /** A drafted cover letter, when one was asked for and the model produced a usable one. */
@@ -724,6 +734,8 @@ export interface AnalyzeFileOptions {
   coverLetterText?: string | null;
   /** Draft a cover letter from the resume (and the job description, if given). */
   coverLetterDraft?: boolean;
+  /** Explain the skills Job Match found missing, and how to start closing each gap. */
+  skillGapNotes?: boolean;
   /**
    * Which result view this run is for. "jobmatch" comes from the dedicated Job Match
    * page and renders only the job-match and cover-letter tabs — the reader came to ask

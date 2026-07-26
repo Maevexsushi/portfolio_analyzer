@@ -95,6 +95,7 @@ export function UploadForm({
   const [checkLinks, setCheckLinks] = useState(false);
   const [rewrite, setRewrite] = useState(documentKind === "resume" && !jobMatchMode);
   const [jobDescription, setJobDescription] = useState("");
+  const [skillGapNotes, setSkillGapNotes] = useState(false);
   const [coverLetterText, setCoverLetterText] = useState("");
   const [coverLetterDraft, setCoverLetterDraft] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -139,6 +140,7 @@ export function UploadForm({
       body.set("checkLinks", String(checkLinks));
       body.set("rewrite", String(rewrite && documentKind === "resume" && !jobMatchMode));
       if (jobDescription.trim()) body.set("jobDescription", jobDescription.trim());
+      body.set("skillGapNotes", String(skillGapNotes && documentKind === "resume"));
       if (coverLetterText.trim()) body.set("coverLetterText", coverLetterText.trim());
       body.set("coverLetterDraft", String(coverLetterDraft && documentKind === "resume"));
       if (jobMatchMode) body.set("focus", "jobmatch");
@@ -284,6 +286,23 @@ export function UploadForm({
             placeholder="Paste the full job posting text here to check how your resume matches it — required and preferred skills, matched and missing."
             className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 text-sm placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none"
           />
+          <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={skillGapNotes}
+              onChange={(event) => setSkillGapNotes(event.target.checked)}
+              disabled={pending}
+              className="h-4 w-4 rounded border-line-strong accent-brand"
+            />
+            Explain the skills I&apos;m missing
+          </label>
+          {skillGapNotes && (
+            <p className="mt-1 text-xs text-muted">
+              A short note per missing skill — what it actually is and a general way to
+              start closing the gap. Never a specific course or link: nothing here can be
+              verified, so nothing here is invented.
+            </p>
+          )}
         </div>
       )}
 

@@ -6,6 +6,7 @@ import { detectDiscipline } from "@/lib/discipline/detect";
 import { profileFor } from "@/lib/discipline/profiles";
 import { analyzeJobMatch, guessCompanyName, guessJobTitle } from "@/lib/jobmatch";
 import { draftCoverLetter, isEmptyCoverLetterDraft } from "@/lib/ai/coverletter";
+import { draftSkillGapNotes } from "@/lib/ai/skillgap";
 import { analyzeCoverLetter } from "./coverletter";
 import {
   composeVocabulary,
@@ -30,6 +31,7 @@ import type {
   JobMatchReport,
   ResumeResult,
   ResumeRewrite,
+  SkillGapNote,
   SkillsReport,
   UploadInfo,
 } from "@/lib/types";
@@ -350,6 +352,35 @@ export async function analyzeUpload(
       }
     }
 
+    /*
+     * Skill-gap notes: what a missing skill actually is, and a general way to start
+     * closing it. Opt-in, and only worth a model call once Job Match has found
+     * something genuinely missing to explain.
+     */
+    let skillGapNotes: SkillGapNote[] | null = null;
+    if ((options.skillGapNotes ?? false) && isAiConfigured() && jobMatch) {
+      const missingSkills = [...jobMatch.missingRequired, ...jobMatch.missingPreferred];
+      if (missingSkills.length > 0) {
+        try {
+          const notes = await draftSkillGapNotes({
+            skills: missingSkills,
+            fieldLabel: profile.label,
+          });
+          skillGapNotes = notes.length > 0 ? notes : null;
+          if (!skillGapNotes) {
+            warnings.push("The skill-gap notes came back empty and were dropped.");
+          }
+        } catch (error) {
+          const code = error instanceof AiError ? error.code : "network";
+          warnings.push(
+            AI_FAILURE_NOTE[code]?.replace("AI review", "skill-gap notes") ??
+              "The skill-gap notes were skipped: the model could not be reached.",
+          );
+          console.error("skill-gap notes failed", error);
+        }
+      }
+    }
+
     return {
       result: {
         kind: "resume",
@@ -373,6 +404,7 @@ export async function analyzeUpload(
         ai,
         rewrite,
         jobMatch,
+        skillGapNotes,
         coverLetter,
         coverLetterDraft,
         warnings,

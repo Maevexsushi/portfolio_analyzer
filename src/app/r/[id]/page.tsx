@@ -150,7 +150,7 @@ function tabsFor(result: AnyResult): ReportTab[] {
         label: "Job match",
         score: result.jobMatch?.score ?? undefined,
         ...(result.jobMatch ? countIssues(result.jobMatch.checks) : {}),
-        content: <JobMatchPanel report={result.jobMatch} />,
+        content: <JobMatchPanel report={result.jobMatch} skillGapNotes={result.skillGapNotes} />,
       },
       {
         id: "coverletter",
@@ -190,7 +190,7 @@ function tabsFor(result: AnyResult): ReportTab[] {
         label: "Job match",
         score: result.jobMatch?.score ?? undefined,
         ...(result.jobMatch ? countIssues(result.jobMatch.checks) : {}),
-        content: <JobMatchPanel report={result.jobMatch} />,
+        content: <JobMatchPanel report={result.jobMatch} skillGapNotes={result.skillGapNotes} />,
       },
       {
         id: "coverletter",

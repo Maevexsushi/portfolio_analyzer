@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { EmptyNote, Panel, SubHeading } from "@/components/Panel";
 import { CheckList } from "@/components/viz";
-import type { JobMatchReport, JobMatchSkillEvidence } from "@/lib/types";
+import type { JobMatchReport, JobMatchSkillEvidence, SkillGapNote } from "@/lib/types";
 
 /**
  * Job description match.
@@ -58,7 +58,35 @@ function MissingSkillChips({ names }: { names: string[] }) {
   );
 }
 
-export function JobMatchPanel({ report }: { report: JobMatchReport | null }) {
+function SkillGapNotes({ notes }: { notes: SkillGapNote[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <div>
+      <SubHeading>Closing the gap</SubHeading>
+      <dl className="space-y-3">
+        {notes.map((note) => (
+          <div key={note.skill} className="rounded-lg border border-line p-3">
+            <dt className="font-semibold">{note.skill}</dt>
+            <dd className="mt-1 text-sm text-ink-soft">{note.whatItIs}</dd>
+            <dd className="mt-1.5 text-sm text-muted">{note.howToLearn}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-xs text-muted">
+        General guidance only — never a specific course, book, or link, since none of
+        those can be verified as real or current.
+      </p>
+    </div>
+  );
+}
+
+export function JobMatchPanel({
+  report,
+  skillGapNotes,
+}: {
+  report: JobMatchReport | null;
+  skillGapNotes?: SkillGapNote[] | null;
+}) {
   if (!report) {
     return (
       <Panel
@@ -163,6 +191,8 @@ export function JobMatchPanel({ report }: { report: JobMatchReport | null }) {
             the text.
           </p>
         )}
+
+        {skillGapNotes && skillGapNotes.length > 0 && <SkillGapNotes notes={skillGapNotes} />}
 
         <CheckList checks={report.checks} />
       </div>
