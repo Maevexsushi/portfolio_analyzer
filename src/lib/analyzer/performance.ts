@@ -21,6 +21,21 @@ const TYPE_LABELS: Record<string, string> = {
   iframe: "Embeds",
 };
 
+/** Effective max-age in seconds; 0 when the header explicitly forbids caching. */
+function maxAgeSeconds(header: string | null): number | null {
+  if (!header) return null;
+  if (/no-store|no-cache/i.test(header)) return 0;
+  const match = /max-age\s*=\s*(\d+)/i.exec(header);
+  return match ? Number(match[1]) : null;
+}
+
+function formatMaxAge(seconds: number): string {
+  if (seconds >= 31_536_000) return "1 year";
+  if (seconds >= 86_400) return `${Math.round(seconds / 86_400)} days`;
+  if (seconds >= 3_600) return `${Math.round(seconds / 3_600)} hours`;
+  return `${seconds}s`;
+}
+
 function groupResources(assets: AssetReport): ResourceGroup[] {
   const groups = new Map<string, ResourceGroup>();
 
@@ -223,15 +238,46 @@ export function analyzePerformance(ctx: PageContext, assets: AssetReport): Perfo
       : "No Content-Encoding header — HTML is being sent uncompressed. Enabling gzip or brotli is usually a one-line config change.",
   });
 
-  const maxAge = /max-age=(\d+)/.exec(cacheControl ?? "");
-  checks.push({
-    id: "perf-caching",
-    label: "Caching headers",
-    status: maxAge && Number(maxAge[1]) >= 3600 ? "pass" : cacheControl ? "warn" : "fail",
-    detail: cacheControl
-      ? `Cache-Control: ${cacheControl}`
-      : "No Cache-Control header, so repeat visits re-download everything.",
-  });
+  /*
+   * Caching is judged on the static assets, not the document.
+   *
+   * `max-age=0, must-revalidate` on an HTML document is correct practice — you want the
+   * page itself re-checked so a deploy is picked up. What should be cached hard is the
+   * fingerprinted CSS/JS/images. Grading the document told well-configured sites to "add
+   * caching headers" when their setup was already right.
+   */
+  const probedAssets = assets.resources.filter((resource) => resource.cacheControl !== null);
+  const longLived = probedAssets.filter(
+    (resource) => (maxAgeSeconds(resource.cacheControl) ?? 0) >= 86_400,
+  );
+  const anyCached = probedAssets.filter(
+    (resource) => (maxAgeSeconds(resource.cacheControl) ?? 0) > 0,
+  );
+
+  if (probedAssets.length > 0) {
+    const share = longLived.length / probedAssets.length;
+    checks.push({
+      id: "perf-caching",
+      label: "Static asset caching",
+      status: share >= 0.5 ? "pass" : anyCached.length > 0 ? "warn" : "fail",
+      detail:
+        `${longLived.length} of ${probedAssets.length} measured assets are cached for a day or longer` +
+        `${longLived.length > 0 ? ` (longest ${formatMaxAge(Math.max(...longLived.map((r) => maxAgeSeconds(r.cacheControl) ?? 0)))})` : ""}. ` +
+        (share >= 0.5
+          ? "Repeat visits will reuse them."
+          : "Fingerprinted CSS, JS, and images can safely use a long max-age with immutable."),
+    });
+  } else {
+    // Nothing probed: only the document's own header is available.
+    checks.push({
+      id: "perf-caching",
+      label: "Static asset caching",
+      status: cacheControl ? "pass" : "warn",
+      detail: cacheControl
+        ? `No static assets were measured this run. The document sends "${cacheControl}", which is normal — HTML should revalidate so deploys are picked up.`
+        : "No Cache-Control header on the document, and no static assets were measured.",
+    });
+  }
 
   checks.push({
     id: "perf-https",

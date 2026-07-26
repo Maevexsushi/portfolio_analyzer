@@ -2,6 +2,7 @@ import type { Check, DesignReport } from "@/lib/types";
 import { scoreFromChecks } from "./check-utils";
 import type { PageContext } from "./context";
 import { collapse, wordCount } from "./context";
+import { collectColorTokens, measureThemeContrast, parseColor } from "./css-color";
 
 /**
  * Design Review.
@@ -74,61 +75,11 @@ function normalizeFontName(raw: string): string | null {
 
 const VAGUE_LINK_TEXT = /^(click here|here|read more|more|link|this|learn more|see more)$/i;
 
-interface Rgb {
-  r: number;
-  g: number;
-  b: number;
-}
-
-function parseColor(raw: string): Rgb | null {
-  const value = raw.trim().toLowerCase();
-
-  const hex = /^#([0-9a-f]{3,8})$/.exec(value);
-  if (hex) {
-    let digits = hex[1];
-    if (digits.length === 3 || digits.length === 4) {
-      digits = digits
-        .slice(0, 3)
-        .split("")
-        .map((char) => char + char)
-        .join("");
-    }
-    if (digits.length < 6) return null;
-    return {
-      r: parseInt(digits.slice(0, 2), 16),
-      g: parseInt(digits.slice(2, 4), 16),
-      b: parseInt(digits.slice(4, 6), 16),
-    };
-  }
-
-  const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(value);
-  if (rgb) {
-    return { r: Number(rgb[1]), g: Number(rgb[2]), b: Number(rgb[3]) };
-  }
-
-  if (value === "white") return { r: 255, g: 255, b: 255 };
-  if (value === "black") return { r: 0, g: 0, b: 0 };
-  return null;
-}
-
-function relativeLuminance({ r, g, b }: Rgb): number {
-  const channel = (value: number) => {
-    const scaled = value / 255;
-    return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-function contrastRatio(a: Rgb, b: Rgb): number {
-  const lighter = Math.max(relativeLuminance(a), relativeLuminance(b));
-  const darker = Math.min(relativeLuminance(a), relativeLuminance(b));
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
 /** Distinct colours ordered by how often the CSS mentions them. */
 function extractPalette(css: string): string[] {
   const counts = new Map<string, number>();
-  const pattern = /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]{5,60}\)/g;
+  const pattern =
+    /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]{5,60}\)|hsla?\([^)]{5,60}\)|oklch\([^)]{5,60}\)/g;
 
   for (const match of css.match(pattern) ?? []) {
     const parsed = parseColor(match);
@@ -292,27 +243,6 @@ function detectDarkMode(ctx: PageContext): { supported: boolean; detail: string 
   };
 }
 
-/** Text/background pair declared for the page root, when the CSS states both. */
-function findRootColorPair(css: string): { color: Rgb; background: Rgb } | null {
-  const blocks = css.split("}");
-  let color: Rgb | null = null;
-  let background: Rgb | null = null;
-
-  for (const block of blocks) {
-    const [selectorPart, declarationPart] = block.split("{");
-    if (!declarationPart) continue;
-    if (!/(^|,)\s*(body|html|:root)\s*(,|$)/i.test(selectorPart)) continue;
-
-    const colorMatch = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(declarationPart);
-    const backgroundMatch =
-      /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(declarationPart);
-
-    if (colorMatch) color = parseColor(colorMatch[1]) ?? color;
-    if (backgroundMatch) background = parseColor(backgroundMatch[1].split(" ")[0]) ?? background;
-  }
-
-  return color && background ? { color, background } : null;
-}
 
 export function analyzeDesign(ctx: PageContext): DesignReport {
   const { $ } = ctx;
@@ -479,15 +409,36 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
 
   /* visual system */
   const palette = extractPalette(ctx.css);
+  const darkMode = detectDarkMode(ctx);
+
+  /*
+   * Palette discipline is judged by whether a token system exists, not by counting every
+   * colour in the compiled CSS.
+   *
+   * The raw count is close to meaningless: a syntax-highlighting theme contributes thirty
+   * values on its own, and utility frameworks emit one rule per shade actually used. It
+   * flagged two sites with deliberate, widely-admired palettes as sprawling. What static
+   * CSS can honestly tell us is whether the author centralised their colours — so that is
+   * what this reports, and it never fails a page over a number this noisy.
+   */
+  const colorTokens = collectColorTokens(ctx.css);
+  const hasTokenSystem = colorTokens.size >= 8;
+  const looseLimit = darkMode.supported ? 60 : 40;
+
   checks.push({
     id: "design-palette",
-    label: "Colour palette is contained",
-    status: palette.length === 0 ? "warn" : palette.length <= 24 ? "pass" : palette.length <= 48 ? "warn" : "fail",
-    detail:
-      palette.length === 0
-        ? "No colours found in the CSS we could read (styles may be in a file we could not download)."
-        : `${palette.length} distinct colours declared${
-            palette.length > 24 ? " — a tighter palette reads as more deliberate" : "."
+    label: "Colour palette is centralised",
+    status: hasTokenSystem || palette.length === 0 || palette.length <= looseLimit ? "pass" : "warn",
+    detail: hasTokenSystem
+      ? `Colours are centralised as ${colorTokens.size} CSS custom properties${
+          darkMode.supported ? " across two themes" : ""
+        } — ${palette.length} distinct values appear in the stylesheet overall.`
+      : palette.length === 0
+        ? "No colours found in the CSS we could read (the stylesheet may not have been downloadable)."
+        : `${palette.length} distinct colours appear in the CSS and none are defined as custom properties${
+            palette.length > looseLimit
+              ? " — defining them as CSS variables makes a palette easier to keep consistent"
+              : "."
           }`,
   });
 
@@ -504,7 +455,6 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
           }`,
   });
 
-  const darkMode = detectDarkMode(ctx);
   const darkModeAware = darkMode.supported;
   checks.push({
     id: "design-dark-mode",
@@ -513,14 +463,40 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
     detail: darkMode.detail,
   });
 
-  const colorPair = findRootColorPair(ctx.css);
-  if (colorPair) {
-    const ratio = contrastRatio(colorPair.color, colorPair.background);
+  /*
+   * Contrast is measured per theme. A dark theme that only re-points tokens shares the
+   * body declarations with the light one, so both are evaluated against their own token
+   * values and the worse result decides the check — a portfolio is only as accessible as
+   * its least readable theme.
+   */
+  const rootClasses = [
+    ...($("html").attr("class") ?? "").split(/\s+/),
+    ...($("body").attr("class") ?? "").split(/\s+/),
+  ].filter(Boolean);
+  const contrasts = measureThemeContrast(ctx.css, rootClasses);
+  if (contrasts.length > 0) {
+    const worst = contrasts.reduce((low, entry) => (entry.ratio < low.ratio ? entry : low));
+    const describe = (entry: (typeof contrasts)[number]) =>
+      `${entry.theme} theme ${entry.ratio.toFixed(2)}:1 (${entry.foreground} on ${entry.background})`;
+
     checks.push({
       id: "design-contrast",
       label: "Body text contrast",
-      status: ratio >= 4.5 ? "pass" : ratio >= 3 ? "warn" : "fail",
-      detail: `Body text contrast is ${ratio.toFixed(2)}:1 (WCAG AA needs 4.5:1 for normal text).`,
+      status: worst.ratio >= 4.5 ? "pass" : worst.ratio >= 3 ? "warn" : "fail",
+      detail:
+        `${contrasts.map(describe).join("; ")}. ` +
+        `WCAG AA needs 4.5:1 for body text${
+          worst.ratio < 4.5 ? `, so the ${worst.theme} theme falls short` : ""
+        }.`,
+    });
+  } else {
+    // Say so rather than omitting the row: a missing check reads as a pass.
+    checks.push({
+      id: "design-contrast-unknown",
+      label: "Body text contrast",
+      status: "warn",
+      detail:
+        "Could not determine body text contrast — the colours are set somewhere this analyzer cannot resolve (a stylesheet it could not download, or values computed at runtime). Check it by hand.",
     });
   }
 
@@ -595,10 +571,14 @@ export function analyzeDesign(ctx: PageContext): DesignReport {
     "design-social-preview": 1,
     "design-favicon": 0.5,
     "design-lang": 0.75,
-    "design-palette": 1,
+    // Noisy signal, deliberately light: it reports a fact more than a fault.
+    "design-palette": 0.5,
     "design-fonts": 1,
     "design-dark-mode": 0.5,
     "design-contrast": 2,
+    // Informational only: not being able to resolve the colours is this analyzer's
+    // limitation, not a fault in the page, so it is reported without costing score.
+    "design-contrast-unknown": 0,
     "design-content-depth": 1.5,
     "design-link-text": 0.75,
     "design-inline-styles": 0.75,

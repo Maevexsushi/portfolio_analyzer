@@ -122,6 +122,77 @@ describe("typeface detection", () => {
   });
 });
 
+describe("contrast check", () => {
+  it("runs on a token-based design instead of silently skipping it", () => {
+    const ctx = ctxFrom(
+      shell("<h1>Ada</h1>"),
+      ":root{--fg:#101418;--bg:#ffffff}body{color:var(--fg);background:var(--bg)}",
+    );
+    const report = analyzeDesign(ctx);
+    expect(statusOf(report.checks, "design-contrast")).toBe("pass");
+    expect(detailOf(report.checks, "design-contrast")).toMatch(/default theme/);
+  });
+
+  it("fails on the worse theme when dark mode is unreadable", () => {
+    const ctx = ctxFrom(
+      shell("<h1>Ada</h1>"),
+      ":root{--fg:#111;--bg:#fff}.dark{--fg:#555;--bg:#3a3a3a}body{color:var(--fg);background:var(--bg)}",
+    );
+    const report = analyzeDesign(ctx);
+    expect(statusOf(report.checks, "design-contrast")).toBe("fail");
+    expect(detailOf(report.checks, "design-contrast")).toMatch(/dark theme/);
+  });
+
+  it("says it could not tell rather than omitting the check", () => {
+    // A missing row reads as a pass, so an unresolvable case must be stated.
+    const ctx = ctxFrom(shell("<h1>Ada</h1>"), "body{color:var(--unknown)}");
+    const report = analyzeDesign(ctx);
+    expect(report.checks.some((c) => c.id === "design-contrast")).toBe(false);
+    expect(statusOf(report.checks, "design-contrast-unknown")).toBe("warn");
+  });
+});
+
+describe("palette check", () => {
+  const tokens = (count: number, offset = 0) =>
+    Array.from(
+      { length: count },
+      (_, i) => `--c${i + offset}:#${(i + offset + 16).toString(16).padStart(2, "0")}2244`,
+    ).join(";");
+
+  /** Many literal colours in rules, none of them centralised as variables. */
+  const literalRules = (count: number) =>
+    Array.from(
+      { length: count },
+      (_, i) => `.u${i}{color:#${(i + 16).toString(16).padStart(2, "0")}9955}`,
+    ).join("");
+
+  it("credits a themed token system rather than counting values twice", () => {
+    const css = `:root{${tokens(15)}}.dark{${tokens(15, 40)}}body{color:#111;background:#fff}`;
+    const report = analyzeDesign(ctxFrom(shell("<h1>Ada</h1>"), css));
+    expect(statusOf(report.checks, "design-palette")).toBe("pass");
+    expect(detailOf(report.checks, "design-palette")).toMatch(/centralised as \d+ CSS custom properties/);
+    expect(detailOf(report.checks, "design-palette")).toMatch(/two themes/);
+  });
+
+  it("credits a single-theme token system too", () => {
+    const css = `:root{${tokens(20)}}body{color:#111;background:#fff}`;
+    const report = analyzeDesign(ctxFrom(shell("<h1>Ada</h1>"), css));
+    expect(statusOf(report.checks, "design-palette")).toBe("pass");
+    expect(detailOf(report.checks, "design-palette")).not.toMatch(/two themes/);
+  });
+
+  it("nudges a site with many scattered colours and no variables", () => {
+    const report = analyzeDesign(ctxFrom(shell("<h1>Ada</h1>"), literalRules(50)));
+    expect(statusOf(report.checks, "design-palette")).toBe("warn");
+    expect(detailOf(report.checks, "design-palette")).toMatch(/custom properties/);
+  });
+
+  it("never fails a page over the colour count alone", () => {
+    const report = analyzeDesign(ctxFrom(shell("<h1>Ada</h1>"), literalRules(200)));
+    expect(statusOf(report.checks, "design-palette")).not.toBe("fail");
+  });
+});
+
 describe("heading and metadata checks", () => {
   it("passes a single h1 and flags none", () => {
     expect(statusOf(analyzeDesign(ctxFrom(shell("<h1>Ada</h1>"))).checks, "design-h1")).toBe("pass");

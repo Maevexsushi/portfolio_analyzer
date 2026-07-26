@@ -59,6 +59,15 @@ performance 10%.
 - **No paint metrics.** Performance is measured from response timing, transfer sizes, and
   headers. It never claims a Lighthouse score. "Measured page weight" is a floor: it covers
   the document plus the assets that were sampled.
+- **Contrast is best-effort, and says when it fails.** It resolves CSS variables, utility
+  classes on the document root, and both themes, but colours applied at runtime (inline
+  styles written by JS) cannot be reached. In that case the report says it could not
+  determine contrast rather than implying a pass, and the check carries no score weight —
+  the analyzer's blind spot should not cost the author points.
+- **Palette is reported, not graded.** Counting colours in compiled CSS cannot tell a
+  sprawling palette from a rich, deliberate one — a syntax-highlighting theme alone
+  contributes dozens. What it reports instead is whether colours are centralised as
+  custom properties.
 - **Heuristics.** Project detection looks for repeated sibling structures, since utility
   CSS means class names usually say nothing. It is checked against real portfolios, but it
   will misjudge unusual markup.
@@ -109,6 +118,11 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   still counted.
 - **Text extraction** — word boundaries survive server-rendered markup that carries no
   whitespace between elements.
+- **Colour** — hex, `rgb()`, `hsl()`, `oklch()`, Tailwind's nested-function alpha
+  (`rgb(15 23 42/var(--tw-bg-opacity))`), `var()` chains with fallbacks, and circular
+  tokens that must not hang the analysis.
+- **Contrast** — resolved from tokens, from utility classes on `<html>`/`<body>`, and per
+  theme, so a readable light theme cannot hide an unreadable dark one.
 
 ## Testing against local fixtures
 

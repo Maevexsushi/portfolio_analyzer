@@ -449,23 +449,31 @@ export async function fetchAssetText(
   }
 }
 
-/** Ask for a resource's transfer size without downloading it. */
-export async function getResourceSize(
+export interface ResourceProbe {
+  bytes: number | null;
+  /** Needed to judge caching on the assets, where long max-age actually belongs. */
+  cacheControl: string | null;
+}
+
+/** Ask for a resource's transfer size and cache policy without downloading it. */
+export async function probeResource(
   rawUrl: string,
   timeoutMs = 6000,
-): Promise<number | null> {
+): Promise<ResourceProbe> {
+  const empty: ResourceProbe = { bytes: null, cacheControl: null };
+
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
-    return null;
+    return empty;
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return empty;
 
   try {
     await assertPublicHost(url);
   } catch {
-    return null;
+    return empty;
   }
 
   try {
@@ -476,11 +484,15 @@ export async function getResourceSize(
       headers: { "user-agent": USER_AGENT, accept: "*/*" },
     });
     await response.body?.cancel().catch(() => {});
-    if (!response.ok) return null;
+    if (!response.ok) return empty;
+
     const length = Number(response.headers.get("content-length") ?? "");
-    return Number.isFinite(length) && length > 0 ? length : null;
+    return {
+      bytes: Number.isFinite(length) && length > 0 ? length : null,
+      cacheControl: response.headers.get("cache-control"),
+    };
   } catch {
-    return null;
+    return empty;
   }
 }
 

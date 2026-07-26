@@ -1,4 +1,4 @@
-import { fetchAssetText, getResourceSize } from "@/lib/fetcher";
+import { fetchAssetText, probeResource } from "@/lib/fetcher";
 import { mapLimit } from "./concurrency";
 import type { PageContext } from "./context";
 import { resolveUrl } from "./context";
@@ -20,6 +20,8 @@ export interface ResourceRef {
   sameOrigin: boolean;
   renderBlocking: boolean;
   bytes: number | null;
+  /** Populated only for probed resources; null means "not measured", not "absent". */
+  cacheControl: string | null;
 }
 
 export interface AssetReport {
@@ -58,6 +60,7 @@ export function collectResourceRefs(ctx: PageContext): ResourceRef[] {
       sameOrigin: Boolean(ctx.origin) && absolute.startsWith(ctx.origin),
       renderBlocking,
       bytes: null,
+      cacheControl: null,
     });
   };
 
@@ -136,7 +139,9 @@ export async function collectAssets(ctx: PageContext): Promise<AssetReport> {
   ].slice(0, MAX_SIZE_PROBES);
 
   await mapLimit(probeQueue, 6, async (resource) => {
-    resource.bytes = await getResourceSize(resource.url);
+    const probe = await probeResource(resource.url);
+    resource.bytes = probe.bytes;
+    resource.cacheControl = probe.cacheControl;
   });
 
   const measured = resources.filter((resource) => resource.bytes !== null);
