@@ -53,6 +53,7 @@ npm run dev                  # http://localhost:3000
 | AI resume rewrite | [src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts), [src/components/panels/RewritePanel.tsx](src/components/panels/RewritePanel.tsx) |
 | Job Match page + engine | [src/app/job-match/](src/app/job-match/), [src/lib/jobmatch/](src/lib/jobmatch/) |
 | Rank several postings | [src/app/job-match/rank/](src/app/job-match/rank/), [src/lib/jobmatch/rank.ts](src/lib/jobmatch/rank.ts) |
+| Company research briefing (AI) | [src/app/company-brief/](src/app/company-brief/), [src/lib/ai/companybrief.ts](src/lib/ai/companybrief.ts) |
 | Skill-gap notes (AI) | [src/lib/ai/skillgap.ts](src/lib/ai/skillgap.ts) |
 | ATS parse preview | [src/lib/document/parsepreview.ts](src/lib/document/parsepreview.ts) |
 | Cover letter analyzer + AI generator | [src/lib/document/coverletter.ts](src/lib/document/coverletter.ts), [src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts) |
@@ -250,6 +251,11 @@ requests to your own site.
   when exactly one side of the split reads as a job title; anything more ambiguous is
   shown as the raw, unsplit line. Education is shown as the section's own raw lines —
   degree, school, and year are not parsed out individually.
+- **The company briefing has no search or news feed behind it.** It reads exactly the
+  pages you paste in — fetched fresh, not recalled from training data — and says
+  nothing beyond what is on them. It is the company's own description of itself, not
+  independent reporting, and every fact it states carries the line from those pages
+  that backs it.
 - **No browser.** The analyzer reads the HTML your server sends. A portfolio that renders
   its projects client-side will score 0 on projects — the report says so, and notes that
   crawlers and link previews have the same blind spot.
@@ -482,6 +488,32 @@ skills only some resumes evidence, and which suggestions are open in one report 
 fixed in another, keyed off the same suggestion id the report tab already uses — so a
 check that reads "fixed" here was actually resolved, not just reworded.
 
+### Company research briefing
+
+At `/company-brief` (linked from the Job Match page): paste up to three of a company's
+own pages — its homepage, About, or Careers page — and get a short interview-prep
+briefing built only from what is actually on them
+([src/lib/ai/companybrief.ts](src/lib/ai/companybrief.ts)).
+
+This is the one AI feature in the app that could do real reputational harm if it got
+the guard wrong, because a company is a real entity most people cannot independently
+fact-check on the spot. A model asked "tell me about Acme" from memory alone answers
+from training data of unknown age, with no way for the reader to tell a stale fact from
+a current one — so this module never asks that question. The pages are fetched fresh,
+right here, through the same SSRF-guarded fetcher the website analyzer already uses,
+and the model is only ever asked to summarise the text it was handed. Every stated fact
+carries the line from the source pages that backs it, the identical evidence-pairing
+rule the "Your edge" review already applies to a portfolio — an unsupported claim about
+a company is a worse failure than almost anywhere else this app could get something
+wrong, and the guard is sized to match.
+
+**What this is not:** there is no search index and no news feed behind it. It cannot
+tell you anything the company has not put on the pages you gave it, and it says so —
+it is the company's own description of itself, not an independent account. Fetching
+more than one page (homepage plus Careers, say) gives a fuller picture than any single
+page alone; a page that fails to fetch is reported by name rather than silently
+dropped, and the briefing still runs from whichever pages succeeded.
+
 ## API
 
 ```
@@ -500,6 +532,8 @@ GET    /api/cover-letter/:id -> application/pdf (the drafted cover letter, if on
 POST   /api/jobmatch/rank multipart: file, discipline?, postings (postings separated by a
                           `---` line, up to 10) -> { discipline, droppedCount, postings }
                           — nothing here is saved; see Ranking several postings
+POST   /api/company-brief { urls: string[] } (up to 3) -> { brief, failed }
+                          — fetched fresh every time, nothing here is saved either
 ```
 
 Analysis fetches user-supplied URLs, so `fetchPage` refuses non-HTTP schemes, resolves each
@@ -598,6 +632,10 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   more than 10 postings are capped with the overflow reported rather than silently
   truncated; and a posting with no recognisable skills sorts last with a null score,
   never as a last-place zero.
+- **Company briefing** — the digest carries only the pages actually fetched, capped at
+  three and truncated per page so one long site cannot blow the context window; and
+  normalization drops a highlight with no supporting line behind it, the same guard the
+  AI review applies to a portfolio's strengths and underselling.
 
 Document fixtures are synthesised at test time — real PDFs via pdf-lib, real .docx via a
 small store-only ZIP writer in [test/doc-helpers.ts](test/doc-helpers.ts). A committed
