@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import { HeaderNav } from "@/components/HeaderNav";
 import "./globals.css";
 
 /*
@@ -50,38 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               />
               Profiled
             </Link>
-            <nav className="flex items-center gap-1 text-sm font-semibold">
-              <Link
-                href="/"
-                className="rounded-lg px-3.5 py-2 text-ink-soft transition-colors duration-200 hover:bg-surface-2 hover:text-ink"
-              >
-                Analyze
-              </Link>
-              <Link
-                href="/job-match"
-                className="rounded-lg px-3.5 py-2 text-ink-soft transition-colors duration-200 hover:bg-surface-2 hover:text-ink"
-              >
-                Job match
-              </Link>
-              <Link
-                href="/job-match/rank"
-                className="rounded-lg px-3.5 py-2 text-ink-soft transition-colors duration-200 hover:bg-surface-2 hover:text-ink"
-              >
-                Rank postings
-              </Link>
-              <Link
-                href="/company-brief"
-                className="rounded-lg px-3.5 py-2 text-ink-soft transition-colors duration-200 hover:bg-surface-2 hover:text-ink"
-              >
-                Company brief
-              </Link>
-              <Link
-                href="/history"
-                className="rounded-lg px-3.5 py-2 text-ink-soft transition-colors duration-200 hover:bg-surface-2 hover:text-ink"
-              >
-                History
-              </Link>
-            </nav>
+            <HeaderNav />
           </div>
         </header>
 
