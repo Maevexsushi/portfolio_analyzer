@@ -7,6 +7,7 @@ export { ExtractError } from "./types";
 export type {
   ExtractedDocument,
   ExtractedPage,
+  PdfAccessibilityInfo,
   SourceFormat,
   TextOrigin,
 } from "./types";

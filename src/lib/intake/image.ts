@@ -155,6 +155,7 @@ export async function extractImage(
     producer: null,
     html: null,
     ocrConfidence: confidence,
+    accessibility: null,
     warnings,
   };
 }

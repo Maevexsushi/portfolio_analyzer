@@ -251,6 +251,7 @@ Go, TypeScript, PostgreSQL`,
       producer: null,
       html: null,
       ocrConfidence: 92,
+      accessibility: null,
       warnings: [],
     };
 

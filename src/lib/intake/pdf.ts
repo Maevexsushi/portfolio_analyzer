@@ -156,6 +156,23 @@ export async function extractPdf(
     // Metadata is optional in the format and in this report.
   }
 
+  let tagged = false;
+  try {
+    tagged = (await proxy.getMarkInfo())?.Marked === true;
+  } catch {
+    // Optional signal; an untagged file is the honest default when it cannot be read.
+  }
+
+  let language: string | null = null;
+  try {
+    // /Lang lives on the document catalog, so any page's text content carries the same
+    // value — page 1 is read regardless of whether it has visible text.
+    const page1 = await proxy.getPage(1);
+    language = metaString((await page1.getTextContent()).lang);
+  } catch {
+    // Optional signal.
+  }
+
   for (const url of findUrlsInText(text)) links.add(url);
 
   return {
@@ -177,6 +194,7 @@ export async function extractPdf(
     producer: metaString(info.Producer) ?? metaString(info.Creator),
     html: null,
     ocrConfidence: null,
+    accessibility: { tagged, language },
     warnings,
   };
 }

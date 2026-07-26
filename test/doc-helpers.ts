@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, StandardFonts } from "pdf-lib";
 
 /**
  * Document fixtures, synthesised at test time.
@@ -20,7 +20,18 @@ export interface PdfPageSpec {
   height?: number;
 }
 
-export async function makePdf(pages: PdfPageSpec[], title?: string): Promise<Uint8Array> {
+export interface PdfAccessibilitySpec {
+  /** Sets the catalog's MarkInfo.Marked flag — what a real "export as accessible PDF" declares. */
+  tagged?: boolean;
+  /** Sets the catalog's /Lang, e.g. "en-US". */
+  language?: string;
+}
+
+export async function makePdf(
+  pages: PdfPageSpec[],
+  title?: string,
+  accessibility?: PdfAccessibilitySpec,
+): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   if (title) doc.setTitle(title);
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -37,12 +48,23 @@ export async function makePdf(pages: PdfPageSpec[], title?: string): Promise<Uin
     });
   }
 
+  if (accessibility?.tagged) {
+    doc.catalog.set(PDFName.of("MarkInfo"), doc.context.obj({ Marked: true }));
+  }
+  if (accessibility?.language) {
+    doc.catalog.set(PDFName.of("Lang"), PDFString.of(accessibility.language));
+  }
+
   return doc.save();
 }
 
 /** Single-page PDF from a block of text — the common case. */
-export function makeTextPdf(text: string, title?: string): Promise<Uint8Array> {
-  return makePdf([{ lines: text.split("\n") }], title);
+export function makeTextPdf(
+  text: string,
+  title?: string,
+  accessibility?: PdfAccessibilitySpec,
+): Promise<Uint8Array> {
+  return makePdf([{ lines: text.split("\n") }], title, accessibility);
 }
 
 /* ----------------------------------- docx ------------------------------------- */

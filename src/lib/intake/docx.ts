@@ -143,6 +143,7 @@ export async function extractDocx(
     producer: "Microsoft Word (.docx)",
     html,
     ocrConfidence: null,
+    accessibility: null,
     warnings,
   };
 }

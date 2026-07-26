@@ -21,6 +21,26 @@ export type TextOrigin =
   /** Recognised from pixels. Approximate, and invisible to every ATS. */
   | "ocr";
 
+/**
+ * PDF structural accessibility signals — what a screen reader can actually use. Null for
+ * DOCX and image sources, where PDF tagging has no equivalent.
+ *
+ * This deliberately stops at the two signals that are both load-bearing and reliably
+ * readable: whether the file declares itself tagged at all, and whether it names a
+ * language. A per-image alt-text check was tried and cut — reading it correctly means
+ * walking a structure tree cross-linked through a parent tree and marked-content IDs in
+ * the page stream, which real authoring tools (Acrobat, Word's "Save as Accessible PDF")
+ * wire correctly but is far too easy to get subtly wrong by hand, including in this
+ * project's own test fixtures. An untagged file already fails the check that matters
+ * most: nothing in it, alt text included, reaches a screen reader either way.
+ */
+export interface PdfAccessibilityInfo {
+  /** The document's own MarkInfo.Marked flag — whether the authoring tool declared it tagged. */
+  tagged: boolean;
+  /** The document's declared /Lang (e.g. "en-US"). Most authoring tools never set this. */
+  language: string | null;
+}
+
 export interface ExtractedPage {
   /** 1-based, matching what the reader sees in a viewer. */
   number: number;
@@ -64,6 +84,8 @@ export interface ExtractedDocument {
   html: string | null;
   /** 0-100 for OCR, null otherwise. */
   ocrConfidence: number | null;
+  /** PDF-only structural accessibility signals. Null for DOCX and image sources. */
+  accessibility: PdfAccessibilityInfo | null;
   warnings: string[];
 }
 

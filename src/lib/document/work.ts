@@ -215,12 +215,33 @@ export function analyzePresentation(document: ExtractedDocument): PresentationRe
     },
   );
 
+  if (document.accessibility) {
+    checks.push({
+      id: "presentation-tagged-pdf",
+      label: "Tagged for screen readers",
+      status: document.accessibility.tagged ? "pass" : "warn",
+      detail: document.accessibility.tagged
+        ? "This PDF declares a tag structure, which is what lets a screen reader announce its content in order rather than reading nothing at all."
+        : "This PDF has no tag structure. A sighted reviewer sees the same page either way, but a screen reader gets nothing usable from it — most design-tool exports do not tag by default; Acrobat's \"Prepare for accessibility\" does.",
+    });
+    checks.push({
+      id: "presentation-pdf-language",
+      label: "Document language declared",
+      status: document.accessibility.language ? "pass" : "warn",
+      detail: document.accessibility.language
+        ? `Declared as "${document.accessibility.language}".`
+        : "No language is declared in the file. A screen reader falls back to its default voice and pronunciation, which is wrong for anyone reading it in a language other than that default.",
+    });
+  }
+
   return {
     score: scoreFromChecks(checks, {
       "presentation-length": 2,
       "presentation-empty": 1.5,
       "presentation-consistent": 1,
       "presentation-orientation": 0.75,
+      "presentation-tagged-pdf": 1.5,
+      "presentation-pdf-language": 0.75,
     }),
     pageCount,
     emptyPages,

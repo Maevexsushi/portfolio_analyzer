@@ -152,6 +152,30 @@ export function analyzeAts(document: ExtractedDocument): AtsReport {
     });
   }
 
+  /*
+   * Tagging and a declared language are read from the PDF itself (see
+   * ExtractedDocument.accessibility) rather than inferred from text, so they only apply
+   * to that format — a .docx or an image has no equivalent property to check.
+   */
+  if (document.accessibility) {
+    checks.push({
+      id: "ats-tagged-pdf",
+      label: "Tagged for screen readers",
+      status: document.accessibility.tagged ? "pass" : "warn",
+      detail: document.accessibility.tagged
+        ? "This PDF declares a tag structure, which is what lets a screen reader announce its content in order rather than reading nothing at all."
+        : "This PDF has no tag structure. A sighted reviewer sees the same page either way, but a screen reader gets nothing usable from it — most export paths (Word, Google Docs, LaTeX) do not tag by default; Word's \"Save as Accessible PDF\" and Acrobat's \"Prepare for accessibility\" do.",
+    });
+    checks.push({
+      id: "ats-pdf-language",
+      label: "Document language declared",
+      status: document.accessibility.language ? "pass" : "warn",
+      detail: document.accessibility.language
+        ? `Declared as "${document.accessibility.language}".`
+        : "No language is declared in the file. A screen reader falls back to its default voice and pronunciation, which is wrong for anyone reading it in a language other than that default.",
+    });
+  }
+
   return {
     score: scoreFromChecks(checks, {
       "ats-readable": 4,
@@ -160,6 +184,8 @@ export function analyzeAts(document: ExtractedDocument): AtsReport {
       "ats-filename": 1,
       "ats-density": 1,
       "ats-images": 1,
+      "ats-tagged-pdf": 1.5,
+      "ats-pdf-language": 0.75,
     }),
     machineReadable,
     standardHeadings,

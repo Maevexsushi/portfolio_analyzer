@@ -203,6 +203,21 @@ const RULES: Record<string, Rule> = {
     action:
       "Skill charts and graphic headers carry text no parser can read. Whatever they say, say it again as text.",
   },
+  "ats-tagged-pdf": {
+    category: "ats",
+    severity: "polish",
+    impact: 3,
+    title: "Export a tagged PDF",
+    action:
+      "Use Word's \"Save as Accessible PDF\" or Acrobat's \"Prepare for accessibility\" instead of a plain print-to-PDF, so a screen reader can announce the document at all.",
+  },
+  "ats-pdf-language": {
+    category: "ats",
+    severity: "polish",
+    impact: 1,
+    title: "Set the document language",
+    action: "Most export paths set this automatically once the PDF is tagged.",
+  },
 
   /* language */
   "language-cliches": {
@@ -292,6 +307,21 @@ const RULES: Record<string, Rule> = {
     impact: 2,
     title: "Pick one orientation",
     action: "Making the reader rotate the document part-way through costs you goodwill.",
+  },
+  "presentation-tagged-pdf": {
+    category: "presentation",
+    severity: "polish",
+    impact: 3,
+    title: "Export a tagged PDF",
+    action:
+      "Most design-tool exports skip this by default. Acrobat's \"Prepare for accessibility\" adds it after the fact if your tool of choice does not.",
+  },
+  "presentation-pdf-language": {
+    category: "presentation",
+    severity: "polish",
+    impact: 1,
+    title: "Set the document language",
+    action: "Most export paths set this automatically once the PDF is tagged.",
   },
 
   /* deliverability */
