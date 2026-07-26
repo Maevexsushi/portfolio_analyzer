@@ -15,8 +15,8 @@ import { UrlForm } from "./UrlForm";
 type Tab = "url" | "file";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: "url", label: "A website", hint: "yourname.dev, a Notion page, a Behance profile" },
-  { id: "file", label: "A file", hint: "resume or portfolio — PDF, DOCX, or an image" },
+  { id: "url", label: "Website", hint: "yourname.dev, a Notion page, a Behance profile" },
+  { id: "file", label: "File", hint: "resume or portfolio — PDF, DOCX, or an image" },
 ];
 
 export function IntakeTabs() {
