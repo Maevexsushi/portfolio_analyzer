@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { UploadForm } from "@/components/UploadForm";
 
 export const metadata = {
@@ -22,6 +23,14 @@ export default function JobMatchPage() {
       <div className="card mt-8 p-5 sm:p-6">
         <UploadForm documentKind="resume" jobMatchMode />
       </div>
+
+      <p className="mt-4 text-sm text-muted">
+        Have more than one posting to check?{" "}
+        <Link href="/job-match/rank" className="font-semibold text-brand-ink hover:underline">
+          Rank several against this resume at once
+        </Link>
+        .
+      </p>
     </div>
   );
 }
