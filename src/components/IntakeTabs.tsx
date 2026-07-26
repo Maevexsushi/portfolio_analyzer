@@ -62,7 +62,7 @@ export function IntakeTabs() {
       <div
         role="tablist"
         aria-label="What to analyze"
-        className="inline-flex gap-1 rounded-lg border border-line bg-surface-2 p-1"
+        className="mx-auto flex w-fit gap-1 rounded-lg border border-line bg-surface-2 p-1"
       >
         {TABS.map((entry) => {
           const Icon = entry.icon;
