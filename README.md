@@ -52,6 +52,7 @@ npm run dev                  # http://localhost:3000
 | AI review ("Your edge") | [src/lib/ai/review.ts](src/lib/ai/review.ts), [src/lib/ai/groq.ts](src/lib/ai/groq.ts) |
 | AI resume rewrite | [src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts), [src/components/panels/RewritePanel.tsx](src/components/panels/RewritePanel.tsx) |
 | Job Match page + engine | [src/app/job-match/](src/app/job-match/), [src/lib/jobmatch/](src/lib/jobmatch/) |
+| Rank several postings | [src/app/job-match/rank/](src/app/job-match/rank/), [src/lib/jobmatch/rank.ts](src/lib/jobmatch/rank.ts) |
 | Skill-gap notes (AI) | [src/lib/ai/skillgap.ts](src/lib/ai/skillgap.ts) |
 | ATS parse preview | [src/lib/document/parsepreview.ts](src/lib/document/parsepreview.ts) |
 | Cover letter analyzer + AI generator | [src/lib/document/coverletter.ts](src/lib/document/coverletter.ts), [src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts) |
@@ -369,6 +370,23 @@ job.
 soft-skill prose ("excellent communicator") — nothing not expressible as a named skill
 in the shared vocabulary. The score is a floor on fit, not a verdict on it.
 
+### Ranking several postings
+
+The reverse direction, at `/job-match/rank`: one resume, several postings pasted in at
+once (separated by a `---` line), ranked best fit first
+([src/lib/jobmatch/rank.ts](src/lib/jobmatch/rank.ts)). For someone with five tabs of
+job postings open, this is the question that actually matters — not "does this resume
+fit," but "which of these should I apply to first."
+
+No new matching logic — it is the same deterministic `analyzeJobMatch` run once per
+posting against one resume's skill set, extracted once. Genuinely its own lightweight
+route rather than a mode of the main analyzer: it needs none of the machinery that
+produces a stored, scored report — no ATS check, no PDF export, no history entry — this
+is a scratch comparison read once on the page it was run on, not a report anyone comes
+back to. A posting with nothing recognisable in it sorts last with an honest "no score,"
+never as a last-place zero — it was not evaluated, not evaluated-and-failed, and a
+ranked list that conflated the two would be lying about what it actually checked.
+
 ### Skill-gap notes
 
 Tick "Explain the skills I'm missing" and every skill Job Match flagged as absent
@@ -479,6 +497,9 @@ DELETE /api/history/:id   -> deletes one
 GET    /api/report/:id    -> application/pdf (the full report)
 GET    /api/rewrite/:id   -> application/pdf (the improved draft, if one was requested)
 GET    /api/cover-letter/:id -> application/pdf (the drafted cover letter, if one was requested)
+POST   /api/jobmatch/rank multipart: file, discipline?, postings (postings separated by a
+                          `---` line, up to 10) -> { discipline, droppedCount, postings }
+                          — nothing here is saved; see Ranking several postings
 ```
 
 Analysis fetches user-supplied URLs, so `fetchPage` refuses non-HTTP schemes, resolves each
@@ -572,6 +593,11 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   splitting declines when both or neither half reads as a title; the date range is
   stripped before the split is attempted; Education lines stop at the next heading; and
   only declared skills are listed, not every skill detected.
+- **Ranking postings** — splitting on a `---` line does not also split on a hyphenated
+  word or an em dash inside a line; blank chunks from a doubled delimiter are dropped;
+  more than 10 postings are capped with the overflow reported rather than silently
+  truncated; and a posting with no recognisable skills sorts last with a null score,
+  never as a last-place zero.
 
 Document fixtures are synthesised at test time — real PDFs via pdf-lib, real .docx via a
 small store-only ZIP writer in [test/doc-helpers.ts](test/doc-helpers.ts). A committed
