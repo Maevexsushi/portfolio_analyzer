@@ -15,7 +15,7 @@ import { scoreFromChecks } from "@/lib/analyzer/check-utils";
  */
 
 /** Phrases so common in applications that they carry no information at all. */
-const CLICHES = [
+export const CLICHES = [
   "hard.?working",
   "team player",
   "self.?starter",

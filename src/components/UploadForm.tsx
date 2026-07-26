@@ -58,6 +58,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
   const [discipline, setDiscipline] = useState<string>("");
   const [ai, setAi] = useState(true);
   const [checkLinks, setCheckLinks] = useState(false);
+  const [rewrite, setRewrite] = useState(documentKind === "resume");
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +96,7 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
       if (discipline) body.set("discipline", discipline);
       body.set("ai", String(ai));
       body.set("checkLinks", String(checkLinks));
+      body.set("rewrite", String(rewrite && documentKind === "resume"));
 
       const response = await fetch("/api/analyze/file", { method: "POST", body });
       const data = (await response.json()) as {
@@ -226,7 +228,28 @@ export function UploadForm({ documentKind }: { documentKind: DocumentKind }) {
           />
           Check the links inside it (slower)
         </label>
+
+        {documentKind === "resume" && (
+          <label className="flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={rewrite}
+              onChange={(event) => setRewrite(event.target.checked)}
+              disabled={pending || !ai}
+              className="h-4 w-4 rounded border-line-strong accent-brand"
+            />
+            Draft an improved version
+          </label>
+        )}
       </div>
+
+      {documentKind === "resume" && rewrite && ai && (
+        <p className="mt-2 text-xs text-muted">
+          The draft rewrites what your resume already says and marks every missing fact as a gap
+          for you to fill — it will not invent numbers. Unlike the file itself, the draft is
+          stored with the report, and is deleted with it.
+        </p>
+      )}
 
       <button
         type="submit"

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { AiError, isAiConfigured } from "@/lib/ai/groq";
 import { isEmptyReview, reviewDocument } from "@/lib/ai/review";
+import { isEmptyRewrite, rewriteResume } from "@/lib/ai/rewrite";
 import { detectDiscipline } from "@/lib/discipline/detect";
 import { profileFor } from "@/lib/discipline/profiles";
 import {
@@ -22,6 +23,7 @@ import type {
   AnalyzeFileOptions,
   DocumentResult,
   ResumeResult,
+  ResumeRewrite,
   SkillsReport,
   UploadInfo,
 } from "@/lib/types";
@@ -226,6 +228,47 @@ export async function analyzeUpload(
       warnings,
     );
 
+    /*
+     * The improved draft. Opt-in and separate from the review, because unlike every
+     * other output this one *is* the author's content: it gets stored with the report
+     * where the uploaded file never was, and it costs a second model call.
+     */
+    let rewrite: ResumeRewrite | null = null;
+    if ((options.rewrite ?? false) && isAiConfigured()) {
+      try {
+        const draft = await rewriteResume({
+          document,
+          profile,
+          contact,
+          structure,
+          experience,
+          skills,
+        });
+        rewrite = isEmptyRewrite(draft) ? null : draft;
+        if (!rewrite) {
+          warnings.push("The improved draft came back empty and was dropped.");
+        } else {
+          if (draft.redactedCount > 0) {
+            warnings.push(
+              `The draft invented ${draft.redactedCount} number${draft.redactedCount === 1 ? "" : "s"} that is not in your resume; each has been replaced with a placeholder for you to fill in.`,
+            );
+          }
+          if (draft.stockPhrases.length > 0) {
+            warnings.push(
+              `The draft reintroduced ${draft.stockPhrases.length} stock phrase${draft.stockPhrases.length === 1 ? "" : "s"} (${draft.stockPhrases.slice(0, 3).join(", ")}) — the same filler this report tells you to cut. Rewrite those lines in your own words.`,
+            );
+          }
+        }
+      } catch (error) {
+        const code = error instanceof AiError ? error.code : "network";
+        warnings.push(
+          AI_FAILURE_NOTE[code]?.replace("AI review", "improved draft") ??
+            "The improved draft was skipped: the model could not be reached.",
+        );
+        console.error("resume rewrite failed", error);
+      }
+    }
+
     return {
       result: {
         kind: "resume",
@@ -246,6 +289,7 @@ export async function analyzeUpload(
         language,
         suggestions,
         ai,
+        rewrite,
         warnings,
       },
       detectedKind: classification.kind,

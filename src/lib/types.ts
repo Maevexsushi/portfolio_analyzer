@@ -426,6 +426,74 @@ export interface LanguageReport {
   checks: Check[];
 }
 
+/* ----------------------------- resume rewrite -------------------------------- */
+
+/**
+ * A gap the rewrite could not fill on its own.
+ *
+ * The whole feature turns on these. The commonest finding on a weak resume is that
+ * nothing carries a number, and a model told to fix that will simply invent one —
+ * a fabricated claim on a document its author will be asked to defend. So every
+ * missing fact becomes a token they have to fill, with a prompt saying what to measure.
+ */
+export interface RewritePlaceholder {
+  /** The literal token as it appears in the text, e.g. "[N staff]". */
+  token: string;
+  /** What to find out, in the author's terms. */
+  prompt: string;
+}
+
+export interface RewrittenBullet {
+  /** The line as originally written. Null when the rewrite added structure. */
+  before: string | null;
+  after: string;
+  /** One line on what changed, so the edit can be accepted or rejected on its merits. */
+  why: string;
+  /** Tokens appearing in `after`. */
+  placeholders: string[];
+  /**
+   * True when a number the model produced was not present in the source and has been
+   * replaced with a placeholder. Surfaced so the guard's work is visible, not silent.
+   */
+  redacted: boolean;
+}
+
+export interface RewrittenEntry {
+  /** The role line, carried over rather than rewritten — it is a matter of fact. */
+  title: string;
+  meta: string | null;
+  bullets: RewrittenBullet[];
+}
+
+export interface RewrittenSection {
+  /** An ATS-standard heading, whatever the original called it. */
+  heading: string;
+  /** Prose sections (a summary) carry a body; experience carries entries. */
+  body: string | null;
+  entries: RewrittenEntry[];
+}
+
+export interface ResumeRewrite {
+  model: string;
+  generatedAt: string;
+  /** Name and target role, as a header line. */
+  headline: string;
+  contactLine: string;
+  sections: RewrittenSection[];
+  /** Every distinct gap, deduplicated, in the order they appear. */
+  placeholders: RewritePlaceholder[];
+  /** What the rewrite changed overall, in a few lines. */
+  notes: string[];
+  /** How many fabricated numbers the guard caught and replaced. */
+  redactedCount: number;
+  /**
+   * Stock phrases that survived into the draft. Named rather than patched: a fabricated
+   * number can be swapped for a placeholder, but prose cannot be safely rewritten after
+   * the fact, so the author is told which lines to redo.
+   */
+  stockPhrases: string[];
+}
+
 export interface ResumeResult {
   kind: "resume";
   id: string;
@@ -445,6 +513,8 @@ export interface ResumeResult {
   language: LanguageReport;
   suggestions: Suggestion[];
   ai: AiReview | null;
+  /** An improved draft, when one was asked for and the model produced a usable one. */
+  rewrite: ResumeRewrite | null;
   warnings: string[];
 }
 
@@ -551,4 +621,9 @@ export interface AnalyzeFileOptions {
   aiReview?: boolean;
   /** Probing links printed inside a document is opt-in; it is slow and often blocked. */
   checkLinks?: boolean;
+  /**
+   * Draft an improved resume. Resumes only, and opt-in: unlike every other output, the
+   * draft is the author's own content and is stored with the report.
+   */
+  rewrite?: boolean;
 }

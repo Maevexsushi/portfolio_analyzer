@@ -80,6 +80,8 @@ export async function POST(request: Request) {
         discipline: asDiscipline(form.get("discipline")),
         aiReview: form.get("ai") !== "false",
         checkLinks: form.get("checkLinks") === "true",
+        // Opt-in: the draft is the author's own content and is stored with the report.
+        rewrite: form.get("rewrite") === "true" && documentKind === "resume",
       },
     );
 

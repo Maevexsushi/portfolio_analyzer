@@ -22,9 +22,11 @@ import {
   LanguagePanel,
   StructurePanel,
 } from "@/components/panels/ResumePanels";
+import { RewritePanel } from "@/components/panels/RewritePanel";
 import { SectionsPanel } from "@/components/panels/SectionsPanel";
 import { SkillsPanel } from "@/components/panels/SkillsPanel";
 import { SuggestionsPanel } from "@/components/panels/SuggestionsPanel";
+import { rewriteToText } from "@/lib/ai/rewrite";
 import { profileFor } from "@/lib/discipline/profiles";
 import { getAnalysis, getTrend, trendKeyFor } from "@/lib/history";
 import { shortenUrl } from "@/lib/format";
@@ -137,6 +139,20 @@ function tabsFor(result: AnyResult): ReportTab[] {
 
   if (result.kind === "resume") {
     return [
+      // The draft leads: everything else describes the problem, this one fixes it.
+      {
+        id: "draft",
+        label: "Improved draft",
+        issues: result.rewrite?.placeholders.length,
+        tone: "warn",
+        content: (
+          <RewritePanel
+            rewrite={result.rewrite}
+            reportId={result.id}
+            plainText={result.rewrite ? rewriteToText(result.rewrite) : ""}
+          />
+        ),
+      },
       ...shared,
       {
         id: "ats",

@@ -1,5 +1,12 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import type { AnalysisResult, AnyResult, Check, CheckStatus, Severity } from "./types";
+import type {
+  AnalysisResult,
+  AnyResult,
+  Check,
+  CheckStatus,
+  ResumeRewrite,
+  Severity,
+} from "./types";
 import { formatBytes, formatDateTime, formatMs } from "./format";
 import { bandFor } from "./format";
 
@@ -635,6 +642,79 @@ function writeSuggestions(report: ReportBuilder, result: AnyResult) {
       report.gap(4);
     });
   }
+}
+
+/**
+ * The improved draft as a document, rather than as a report about a document.
+ *
+ * Deliberately plain: one column, standard headings, no colour, no rules. That is not
+ * a lack of effort — it is the layout an applicant tracking system parses most
+ * reliably, which is the whole point of the exercise. Placeholders are left exactly as
+ * they are, visible and unmissable, because a draft that hides its gaps is one someone
+ * sends with "[N staff]" still in it.
+ */
+export async function buildRewritePdf(
+  rewrite: ResumeRewrite,
+  fileName: string,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(rewrite.headline || `Improved draft — ${fileName}`);
+  doc.setCreator("Profiled");
+
+  const fonts: Fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+  };
+  const report = new ReportBuilder(doc, fonts);
+
+  if (rewrite.placeholders.length > 0) {
+    report.text("DRAFT — fill in the bracketed gaps before sending", {
+      size: 9,
+      bold: true,
+      color: MARK.warn,
+    });
+    report.gap(10);
+  }
+
+  report.text(rewrite.headline, { size: 18, bold: true });
+  report.gap(2);
+  report.text(rewrite.contactLine, { size: 9.5, color: INK_SOFT });
+  report.gap(12);
+
+  for (const section of rewrite.sections) {
+    report.heading(section.heading.toUpperCase());
+    if (section.body) {
+      report.text(section.body, { size: 9.5, color: INK });
+      report.gap(4);
+    }
+
+    for (const entry of section.entries) {
+      report.text(entry.title, { size: 10, bold: true });
+      if (entry.meta) {
+        report.text(entry.meta, { size: 9, color: MUTED });
+      }
+      report.gap(2);
+      for (const bullet of entry.bullets) {
+        report.text(`- ${bullet.after}`, { size: 9.5, color: INK, x: MARGIN + 10 });
+        report.gap(2);
+      }
+      report.gap(6);
+    }
+  }
+
+  if (rewrite.placeholders.length > 0) {
+    report.heading("Gaps to fill");
+    for (const placeholder of rewrite.placeholders) {
+      report.text(`${placeholder.token}  ${placeholder.prompt}`, { size: 9, color: INK_SOFT });
+      report.gap(3);
+    }
+  }
+
+  report.finish(
+    `Draft rewritten by ${rewrite.model} from ${fileName}. Nothing here was invented — check every line before you send it.`,
+  );
+
+  return doc.save();
 }
 
 export async function buildReportPdf(result: AnyResult): Promise<Uint8Array> {

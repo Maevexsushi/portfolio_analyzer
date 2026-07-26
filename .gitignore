@@ -12,6 +12,9 @@ data/
 .tesseract-cache/
 *.traineddata
 
+# Local working prompt, not part of the project
+prompt.xml
+
 .env*
 !.env.example
 
