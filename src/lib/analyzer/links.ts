@@ -1,4 +1,5 @@
 import { probeLink } from "@/lib/fetcher";
+import type { DisciplineProfile } from "@/lib/discipline/types";
 import type { Check, EssentialLink, LinkFinding, LinkKind, LinksReport } from "@/lib/types";
 import { mapLimit } from "./concurrency";
 import type { PageContext } from "./context";
@@ -100,7 +101,7 @@ const PROBED_KINDS = new Set<LinkKind>(["social", "repo", "resume", "external"])
 
 export async function analyzeLinks(
   ctx: PageContext,
-  options: { checkLinks: boolean; maxLinkChecks: number },
+  options: { checkLinks: boolean; maxLinkChecks: number; profile: DisciplineProfile },
 ): Promise<LinksReport> {
   const { $ } = ctx;
   const byUrl = new Map<string, LinkFinding>();
@@ -193,9 +194,16 @@ export async function analyzeLinks(
     };
   };
 
+  /*
+   * Which links count as essential is a question about the field, not about the web.
+   * A developer without a code host has hidden the thing they are hired for; an
+   * illustrator without one has done nothing wrong at all. The profile decides, and
+   * the same code then serves both without either being judged by the other's rules.
+   */
   const essentials: EssentialLink[] = [
-    findEssential("github", "GitHub profile", (link) => link.platform === "GitHub"),
-    findEssential("linkedin", "LinkedIn profile", (link) => link.platform === "LinkedIn"),
+    ...options.profile.platforms.map((platform) =>
+      findEssential(platform.id, platform.label, (link) => platform.pattern.test(link.url)),
+    ),
     findEssential("email", "Email address", (link) => link.kind === "email"),
     findEssential("resume", "Resume / CV link", (link) => link.kind === "resume"),
   ];
@@ -247,23 +255,21 @@ export async function analyzeLinks(
     });
   }
 
+  const resumeEssential = essentials.find((entry) => entry.id === "resume")!;
+
+  for (const platform of options.profile.platforms) {
+    const essential = essentials.find((entry) => entry.id === platform.id)!;
+    checks.push({
+      id: `links-proof-${platform.id}`,
+      label: `${platform.label} linked`,
+      // A bonus platform never fails. Missing one is advice, not a deduction — the
+      // whole point of the weighting is that fields differ in what they require.
+      status: essential.found ? "pass" : platform.weight === "expected" ? "fail" : "warn",
+      detail: essential.found ? `Linked: ${essential.url}` : `Not found. ${platform.note}`,
+    });
+  }
+
   checks.push(
-    {
-      id: "links-github",
-      label: "GitHub linked",
-      status: essentials[0].found ? "pass" : "fail",
-      detail: essentials[0].found
-        ? `Linked: ${essentials[0].url}`
-        : "No GitHub link found. Reviewers will look for your code first.",
-    },
-    {
-      id: "links-linkedin",
-      label: "LinkedIn linked",
-      status: essentials[1].found ? "pass" : "warn",
-      detail: essentials[1].found
-        ? `Linked: ${essentials[1].url}`
-        : "No LinkedIn link found — most recruiters expect one.",
-    },
     {
       id: "links-email",
       label: "Email contact",
@@ -278,9 +284,9 @@ export async function analyzeLinks(
     {
       id: "links-resume",
       label: "Resume / CV available",
-      status: essentials[3].found ? "pass" : "warn",
-      detail: essentials[3].found
-        ? `Resume linked: ${essentials[3].url}`
+      status: resumeEssential.found ? "pass" : "warn",
+      detail: resumeEssential.found
+        ? `Resume linked: ${resumeEssential.url}`
         : "No resume or CV link found.",
     },
     {
@@ -317,7 +323,7 @@ export async function analyzeLinks(
       id: "links-essential-broken",
       label: "Essential links reachable",
       status: "fail",
-      detail: "One of your key links (GitHub, LinkedIn, email, resume) is broken.",
+      detail: `One of your key links (${essentials.map((entry) => entry.label.toLowerCase()).join(", ")}) is broken.`,
     });
   }
 
@@ -330,12 +336,18 @@ export async function analyzeLinks(
     });
   }
 
+  const proofWeights = Object.fromEntries(
+    options.profile.platforms.map((platform) => [
+      `links-proof-${platform.id}`,
+      platform.weight === "expected" ? 2 : 0.4,
+    ]),
+  );
+
   const score = scoreFromChecks(checks, {
+    ...proofWeights,
     "links-broken": 3,
-    "links-github": 2,
     "links-email": 2,
     "links-essential-broken": 3,
-    "links-linkedin": 1.5,
     "links-resume": 1.5,
     "links-placeholder": 1,
     "links-accessible-name": 1,

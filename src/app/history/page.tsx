@@ -10,16 +10,26 @@ export const metadata = {
   title: "Analysis history — Portfolio Analyzer",
 };
 
+const KIND_LABEL: Record<HistoryEntry["kind"], string> = {
+  website: "Website",
+  resume: "Resume / CV",
+  document: "Portfolio document",
+};
+
 export default async function HistoryPage() {
   const entries: HistoryEntry[] = await listHistory().catch(() => []);
 
-  // Group by site so repeat runs of the same portfolio read as a progression.
-  const bySite = new Map<string, HistoryEntry[]>();
+  /*
+   * Group by subject so repeat runs read as a progression. Keyed by kind as well as
+   * identifier: a resume named "portfolio.pdf" and a site at that address are two
+   * different things, and merging them would chart one score line across both.
+   */
+  const bySubject = new Map<string, HistoryEntry[]>();
   for (const entry of entries) {
-    const key = entry.finalUrl;
-    const existing = bySite.get(key);
+    const key = `${entry.kind}:${entry.finalUrl}`;
+    const existing = bySubject.get(key);
     if (existing) existing.push(entry);
-    else bySite.set(key, [entry]);
+    else bySubject.set(key, [entry]);
   }
 
   return (
@@ -30,7 +40,7 @@ export default async function HistoryPage() {
           <p className="mt-1 text-sm text-muted">
             {entries.length === 0
               ? "Nothing stored yet."
-              : `${entries.length} stored analys${entries.length === 1 ? "is" : "es"} across ${bySite.size} site${bySite.size === 1 ? "" : "s"}. The last 50 runs are kept.`}
+              : `${entries.length} stored analys${entries.length === 1 ? "is" : "es"} across ${bySubject.size} subject${bySubject.size === 1 ? "" : "s"}. The last 50 runs are kept.`}
           </p>
         </div>
         {entries.length > 0 && <ClearHistoryButton count={entries.length} />}
@@ -43,31 +53,37 @@ export default async function HistoryPage() {
             href="/"
             className="mt-4 inline-block rounded-xl bg-brand px-5 py-2.5 font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Analyze a portfolio
+            Analyze a portfolio or resume
           </Link>
         </div>
       ) : (
         <div className="mt-8 space-y-6">
-          {[...bySite.entries()].map(([site, runs]) => {
+          {[...bySubject.entries()].map(([key, runs]) => {
             const latest = runs[0];
             const previous = runs[1];
             const delta = previous ? latest.overallScore - previous.overallScore : null;
+            const isWebsite = latest.kind === "website";
 
             return (
-              <section key={site} className="card overflow-hidden">
+              <section key={key} className="card overflow-hidden">
                 <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
                   <div className="min-w-0">
-                    <a
-                      href={site}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium break-all hover:underline"
-                    >
-                      {shortenUrl(site, 52)}
-                    </a>
+                    {isWebsite ? (
+                      <a
+                        href={latest.finalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium break-all hover:underline"
+                      >
+                        {shortenUrl(latest.finalUrl, 52)}
+                      </a>
+                    ) : (
+                      // Uploads are never stored, so there is nothing to link out to.
+                      <p className="font-medium break-all">{latest.finalUrl}</p>
+                    )}
                     <p className="text-xs text-muted">
-                      {runs.length} run{runs.length === 1 ? "" : "s"} · latest{" "}
-                      {formatRelative(latest.analyzedAt)}
+                      {KIND_LABEL[latest.kind]} · {runs.length} run
+                      {runs.length === 1 ? "" : "s"} · latest {formatRelative(latest.analyzedAt)}
                     </p>
                   </div>
                   {delta !== null && (

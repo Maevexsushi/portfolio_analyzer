@@ -8,6 +8,10 @@ next-env.d.ts
 # local analysis history store
 data/
 
+# OCR language models, downloaded on first use (~5 MB each)
+.tesseract-cache/
+*.traineddata
+
 .env*
 !.env.example
 

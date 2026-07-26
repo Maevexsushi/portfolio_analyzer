@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { url, checkLinks, save } = (body ?? {}) as {
+  const { url, checkLinks, ai, save } = (body ?? {}) as {
     url?: unknown;
     checkLinks?: unknown;
+    ai?: unknown;
     save?: unknown;
   };
 
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
   try {
     const result = await analyzePortfolio(url, {
       checkLinks: checkLinks !== false,
+      aiReview: ai !== false,
     });
 
     if (save !== false) {
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
       await saveAnalysis(result).catch(() => undefined);
     }
 
-    const trend = await getTrend(result.finalUrl).catch(() => []);
+    const trend = await getTrend(result.finalUrl, "website").catch(() => []);
     return NextResponse.json({ result, trend });
   } catch (error) {
     if (error instanceof FetchError) {

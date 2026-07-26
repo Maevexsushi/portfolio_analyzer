@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import type { AnalysisResult, Check, CheckStatus, Severity } from "./types";
+import type { AnalysisResult, AnyResult, Check, CheckStatus, Severity } from "./types";
 import { formatBytes, formatDateTime, formatMs } from "./format";
 import { bandFor } from "./format";
 
@@ -51,7 +51,9 @@ function safe(input: string): string {
   const mapped = input
     .replace(/[‘’‛]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, "-")
+    // The whole U+2010-2015 dash run, not just en/em: models reach for the
+    // non-breaking hyphen (U+2011) constantly, and it has no WinAnsi codepoint.
+    .replace(/[‐-―]/g, "-")
     .replace(/…/g, "...")
     .replace(/[   ]/g, " ")
     .replace(/[•·]/g, "-")
@@ -391,7 +393,7 @@ class ReportBuilder {
     this.gap(height + 2);
   }
 
-  heroScore(result: AnalysisResult): void {
+  heroScore(result: AnyResult): void {
     const boxHeight = 92;
     this.reserve(boxHeight);
     const top = this.y + boxHeight;
@@ -511,27 +513,19 @@ function scoreStatus(score: number): CheckStatus {
   return band === "good" ? "pass" : band === "warn" ? "warn" : "fail";
 }
 
-export async function buildReportPdf(result: AnalysisResult): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  doc.setTitle(`Portfolio analysis — ${result.finalUrl}`);
-  doc.setSubject(`Score ${result.overallScore}/100 (${result.grade})`);
-  doc.setCreator("Portfolio Analyzer");
+/** The common opening: cover, hero score, weighted breakdown, caveats, editorial read. */
+function writePreamble(report: ReportBuilder, result: AnyResult, subject: string, subtitle: string) {
+  const kindTitle =
+    result.kind === "resume"
+      ? "Resume analysis report"
+      : result.kind === "document"
+        ? "Portfolio document report"
+        : "Portfolio analysis report";
 
-  const fonts: Fonts = {
-    regular: await doc.embedFont(StandardFonts.Helvetica),
-    bold: await doc.embedFont(StandardFonts.HelveticaBold),
-  };
-
-  const report = new ReportBuilder(doc, fonts);
-
-  /* cover */
-  report.text("Portfolio analysis report", { size: 20, bold: true });
+  report.text(kindTitle, { size: 20, bold: true });
   report.gap(4);
-  report.text(result.finalUrl, { size: 10, color: MARK.seq });
-  report.text(
-    `${result.meta.title || "Untitled page"} · analyzed ${formatDateTime(result.analyzedAt)} in ${formatMs(result.durationMs)}`,
-    { size: 9, color: MUTED },
-  );
+  report.text(subject, { size: 10, color: MARK.seq });
+  report.text(subtitle, { size: 9, color: MUTED });
   report.gap(10);
   report.heroScore(result);
 
@@ -543,6 +537,245 @@ export async function buildReportPdf(result: AnalysisResult): Promise<Uint8Array
       entry.summary,
     );
   }
+
+  report.heading("What this report assumed");
+  report.text(
+    `Field: ${result.discipline.label}${
+      result.discipline.chosen
+        ? " (you selected this)"
+        : ` (detected, ${result.discipline.confidence}% confidence${
+            result.discipline.evidence.length > 0
+              ? `; matched ${result.discipline.evidence.join(", ")}`
+              : ""
+          })`
+    }. ${result.discipline.blurb} Every check below is aimed at that field's expectations.`,
+    { size: 9, color: INK_SOFT },
+  );
+
+  if (result.warnings.length > 0) {
+    report.heading("Caveats");
+    for (const warning of result.warnings) {
+      report.text(`- ${warning}`, { size: 9, color: INK_SOFT });
+      report.gap(2);
+    }
+  }
+
+  writeAiSection(report, result);
+
+  report.heading("What to fix");
+  writeSuggestions(report, result);
+}
+
+function writeAiSection(report: ReportBuilder, result: AnyResult) {
+  if (!result.ai) return;
+
+  report.heading("Your edge");
+  if (result.ai.pitch) {
+    report.text(result.ai.pitch, { size: 11, bold: true });
+    report.text("The pitch this currently earns.", { size: 8, color: MUTED });
+    report.gap(6);
+  }
+  if (result.ai.positioning) {
+    report.text(result.ai.positioning, { size: 9.5, color: INK_SOFT });
+    report.gap(6);
+  }
+
+  const groups: [string, typeof result.ai.strengths][] = [
+    ["Lead with this", result.ai.strengths],
+    ["You are underselling", result.ai.underselling],
+  ];
+  for (const [label, items] of groups) {
+    if (items.length === 0) continue;
+    report.text(label, { size: 10, bold: true });
+    report.gap(3);
+    for (const item of items) {
+      report.text(`- ${item.title}`, { size: 9.5, bold: true });
+      report.text(item.evidence, { size: 9, color: INK_SOFT, x: MARGIN + 12 });
+      report.gap(4);
+    }
+    report.gap(2);
+  }
+
+  if (result.ai.standoutProject) {
+    report.text(`Strongest piece: ${result.ai.standoutProject}`, { size: 9, color: INK_SOFT });
+  }
+  if (result.ai.bestFitRoles.length > 0) {
+    report.text(`Reads as competitive for: ${result.ai.bestFitRoles.join(", ")}.`, {
+      size: 9,
+      color: INK_SOFT,
+    });
+  }
+  report.gap(3);
+  report.text(
+    `Generated by ${result.ai.model}. A model's opinion, not a measurement — check each claim against the evidence beside it.`,
+    { size: 8, color: MUTED },
+  );
+}
+
+function writeSuggestions(report: ReportBuilder, result: AnyResult) {
+  if (result.suggestions.length === 0) {
+    report.text("Nothing to fix — every check passed.", { size: 9.5, color: INK_SOFT });
+    return;
+  }
+
+  for (const severity of ["critical", "important", "polish"] as Severity[]) {
+    const items = result.suggestions.filter((s) => s.severity === severity);
+    if (items.length === 0) continue;
+
+    report.gap(4);
+    report.severityHeading(severity, items.length, SEVERITY_MARK[severity]);
+
+    items.forEach((suggestion, index) => {
+      report.text(`${index + 1}. ${suggestion.title}  (+${suggestion.impact} pts)`, {
+        size: 9.5,
+        bold: true,
+      });
+      report.gap(1);
+      report.text(suggestion.detail, { size: 9, color: INK_SOFT, x: MARGIN + 12 });
+      report.gap(4);
+    });
+  }
+}
+
+export async function buildReportPdf(result: AnyResult): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const subject = result.kind === "website" ? result.finalUrl : result.upload.fileName;
+  doc.setTitle(`Analysis — ${subject}`);
+  doc.setSubject(`Score ${result.overallScore}/100 (${result.grade})`);
+  doc.setCreator("Portfolio Analyzer");
+
+  const fonts: Fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+  };
+
+  const report = new ReportBuilder(doc, fonts);
+
+  if (result.kind === "resume") {
+    writeResumeReport(report, result);
+  } else if (result.kind === "document") {
+    writeDocumentReport(report, result);
+  } else {
+    writeWebsiteReport(report, result);
+  }
+
+  report.finish(
+    `Portfolio Analyzer — ${subject} on ${formatDateTime(result.analyzedAt)}. Scores are heuristic.`,
+  );
+
+  return doc.save();
+}
+
+function writeResumeReport(report: ReportBuilder, result: Extract<AnyResult, { kind: "resume" }>) {
+  writePreamble(
+    report,
+    result,
+    result.upload.fileName,
+    `${result.upload.format.toUpperCase()}${
+      result.upload.pageCount ? `, ${result.upload.pageCount} pages` : ""
+    } · analyzed ${formatDateTime(result.analyzedAt)} in ${formatMs(result.durationMs)}`,
+  );
+
+  report.heading("Machine readability", result.ats.score);
+  for (const check of result.ats.checks) report.checkRow(check);
+
+  report.heading("Experience & impact", result.experience.score);
+  for (const check of result.experience.checks) report.checkRow(check);
+  if (result.experience.entries.length > 0) {
+    report.gap(6);
+    report.text("Role by role", { size: 10, bold: true });
+    report.gap(4);
+    for (const entry of result.experience.entries) {
+      report.text(entry.title, { size: 9.5, bold: true });
+      report.text(
+        `${entry.bulletCount} bullets · ${entry.quantifiedBullets} with numbers · ${entry.actionVerbBullets} action-led`,
+        { size: 8.5, color: MUTED, x: MARGIN + 12 },
+      );
+      for (const weak of entry.weakBullets) {
+        report.text(`Rewrite: "${weak}"`, { size: 8.5, color: INK_SOFT, x: MARGIN + 12 });
+      }
+      report.gap(5);
+    }
+  }
+
+  report.heading("Structure", result.structure.score);
+  for (const check of result.structure.checks) report.checkRow(check);
+
+  report.heading("Contact & reachability", result.contact.score);
+  for (const check of result.contact.checks) report.checkRow(check);
+
+  writeSkills(report, result.skills);
+
+  report.heading("Writing", result.language.score);
+  for (const check of result.language.checks) report.checkRow(check);
+}
+
+function writeDocumentReport(
+  report: ReportBuilder,
+  result: Extract<AnyResult, { kind: "document" }>,
+) {
+  writePreamble(
+    report,
+    result,
+    result.upload.fileName,
+    `${result.upload.format.toUpperCase()}${
+      result.upload.pageCount ? `, ${result.upload.pageCount} pages` : ""
+    } · analyzed ${formatDateTime(result.analyzedAt)} in ${formatMs(result.durationMs)}`,
+  );
+
+  report.heading("The work", result.work.score);
+  for (const check of result.work.checks) report.checkRow(check);
+  if (result.work.works.length > 0) {
+    report.gap(6);
+    report.text("Piece by piece", { size: 10, bold: true });
+    report.gap(4);
+    for (const work of result.work.works) {
+      report.text(`p${work.page} — ${work.title}`, { size: 9.5, bold: true });
+      report.text(
+        `${work.wordCount} words · ${work.imageCount} images${
+          work.issues.length > 0 ? ` · missing: ${work.issues.join("; ")}` : ""
+        }`,
+        { size: 8.5, color: MUTED, x: MARGIN + 12 },
+      );
+      report.gap(4);
+    }
+  }
+
+  report.heading("Presentation", result.presentation.score);
+  for (const check of result.presentation.checks) report.checkRow(check);
+
+  report.heading("Deliverability", result.deliverability.score);
+  for (const check of result.deliverability.checks) report.checkRow(check);
+
+  report.heading("Contact & reachability", result.contact.score);
+  for (const check of result.contact.checks) report.checkRow(check);
+
+  writeSkills(report, result.skills);
+}
+
+function writeSkills(report: ReportBuilder, skills: AnalysisResult["skills"]) {
+  report.heading("Skills detected", skills.score);
+  for (const check of skills.checks) report.checkRow(check);
+  if (skills.skills.length > 0) {
+    report.gap(4);
+    report.chips(
+      skills.skills.map((skill) => (skill.declared ? `${skill.name} *` : skill.name)),
+      true,
+    );
+    report.text("* listed in a skills section; the rest were inferred from the text.", {
+      size: 8,
+      color: MUTED,
+    });
+  }
+}
+
+function writeWebsiteReport(report: ReportBuilder, result: AnalysisResult) {
+  writePreamble(
+    report,
+    result,
+    result.finalUrl,
+    `${result.meta.title || "Untitled page"} · analyzed ${formatDateTime(result.analyzedAt)} in ${formatMs(result.durationMs)}`,
+  );
 
   report.heading("At a glance");
   report.keyValueGrid([
@@ -567,38 +800,6 @@ export async function buildReportPdf(result: AnalysisResult): Promise<Uint8Array
     ["HTML size", formatBytes(result.performance.htmlBytes)],
     ["Compression", result.performance.compression ?? "none"],
   ]);
-
-  if (result.warnings.length > 0) {
-    report.heading("Caveats");
-    for (const warning of result.warnings) {
-      report.text(`- ${warning}`, { size: 9, color: INK_SOFT });
-      report.gap(2);
-    }
-  }
-
-  /* fixes */
-  report.heading("What to fix");
-  if (result.suggestions.length === 0) {
-    report.text("Nothing to fix — every check passed.", { size: 9.5, color: INK_SOFT });
-  } else {
-    for (const severity of ["critical", "important", "polish"] as Severity[]) {
-      const items = result.suggestions.filter((s) => s.severity === severity);
-      if (items.length === 0) continue;
-
-      report.gap(4);
-      report.severityHeading(severity, items.length, SEVERITY_MARK[severity]);
-
-      items.forEach((suggestion, index) => {
-        report.text(`${index + 1}. ${suggestion.title}  (+${suggestion.impact} pts)`, {
-          size: 9.5,
-          bold: true,
-        });
-        report.gap(1);
-        report.text(suggestion.detail, { size: 9, color: INK_SOFT, x: MARGIN + 12 });
-        report.gap(4);
-      });
-    }
-  }
 
   /* sections */
   report.heading("Portfolio sections", result.sections.score);
@@ -730,10 +931,4 @@ export async function buildReportPdf(result: AnalysisResult): Promise<Uint8Array
     ["Images", `${result.performance.imagesTotal} (${result.performance.imagesLazy} lazy)`],
     ["Cache-Control", result.performance.cacheControl ?? "none"],
   ]);
-
-  report.finish(
-    `Portfolio Analyzer — static analysis of ${result.finalUrl} on ${formatDateTime(result.analyzedAt)}. Scores are heuristic.`,
-  );
-
-  return doc.save();
 }

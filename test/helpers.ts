@@ -2,6 +2,16 @@ import type { FetchedPage } from "@/lib/fetcher";
 import { buildContext, type PageContext } from "@/lib/analyzer/context";
 import type { AssetReport } from "@/lib/analyzer/assets";
 import { collectResourceRefs } from "@/lib/analyzer/assets";
+import { profileFor } from "@/lib/discipline/profiles";
+
+/**
+ * The profile these tests run against.
+ *
+ * Software, because that is what the fixtures are written as and what the existing
+ * accuracy cases were pinned against. Discipline-specific behaviour is covered
+ * separately in discipline.test.ts rather than by re-running every case per field.
+ */
+export const SOFTWARE_PROFILE = profileFor("software");
 
 /**
  * Test helpers.

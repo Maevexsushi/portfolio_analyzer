@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteAnalysis, getAnalysis, getTrend } from "@/lib/history";
+import { deleteAnalysis, getAnalysis, getTrend, trendKeyFor } from "@/lib/history";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function GET(
   if (!result) {
     return NextResponse.json({ error: "That analysis is no longer stored." }, { status: 404 });
   }
-  const trend = await getTrend(result.finalUrl).catch(() => []);
+  const trend = await getTrend(trendKeyFor(result), result.kind).catch(() => []);
   return NextResponse.json({ result, trend });
 }
 

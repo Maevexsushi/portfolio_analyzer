@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSkills, detectSkillNames } from "@/lib/analyzer/skills";
-import { ctxFrom, shell } from "./helpers";
+import { SOFTWARE_PROFILE, ctxFrom, shell } from "./helpers";
 
-const found = (html: string): string[] => analyzeSkills(ctxFrom(html)).skills.map((s) => s.name);
+const found = (html: string): string[] => analyzeSkills(ctxFrom(html), SOFTWARE_PROFILE).skills.map((s) => s.name);
 
 describe("skills detector — ambiguous English words", () => {
   /*
@@ -78,7 +78,7 @@ describe("skills detector — a declared skills section is trusted context", () 
   });
 
   it("marks skills-section entries as declared", () => {
-    const report = analyzeSkills(ctxFrom(withSkills));
+    const report = analyzeSkills(ctxFrom(withSkills), SOFTWARE_PROFILE);
     expect(report.hasSkillsSection).toBe(true);
     expect(report.skills.find((s) => s.name === "Express")?.declared).toBe(true);
   });
@@ -97,7 +97,7 @@ describe("detectSkillNames — project tag context", () => {
 
 describe("skills detector — breadth reporting", () => {
   it("does not claim coverage it cannot see", () => {
-    const report = analyzeSkills(ctxFrom(shell("<h1>Ada</h1><p>I build things.</p>")));
+    const report = analyzeSkills(ctxFrom(shell("<h1>Ada</h1><p>I build things.</p>")), SOFTWARE_PROFILE);
     expect(report.total).toBe(0);
     expect(report.score).toBe(0);
     expect(report.checks.find((c) => c.id === "skills-count")?.status).toBe("fail");
@@ -111,6 +111,7 @@ describe("skills detector — breadth reporting", () => {
         <li>Prisma</li><li>Docker</li><li>AWS</li><li>Playwright</li><li>Tailwind CSS</li>
         <li>GraphQL</li><li>Redis</li></ul></section>`),
       ),
+      SOFTWARE_PROFILE,
     );
     expect(report.total).toBeGreaterThanOrEqual(10);
     expect(report.checks.find((c) => c.id === "skills-count")?.status).toBe("pass");

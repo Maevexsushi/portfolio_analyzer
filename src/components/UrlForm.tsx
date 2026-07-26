@@ -18,6 +18,7 @@ const STAGES = [
   "Reading stylesheets and assets…",
   "Detecting sections, projects, and skills…",
   "Checking links and scoring…",
+  "Reading your work for what stands out…",
 ];
 
 export function UrlForm({
@@ -30,6 +31,7 @@ export function UrlForm({
   const router = useRouter();
   const [url, setUrl] = useState(initialUrl);
   const [checkLinks, setCheckLinks] = useState(true);
+  const [ai, setAi] = useState(true);
   const [pending, setPending] = useState(false);
   const [stage, setStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export function UrlForm({
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: target, checkLinks }),
+        body: JSON.stringify({ url: target, checkLinks, ai }),
       });
       const data = (await response.json()) as {
         result?: { id: string };
@@ -118,7 +120,7 @@ export function UrlForm({
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
         <label className="flex items-center gap-2 text-sm text-ink-soft">
           <input
             type="checkbox"
@@ -128,6 +130,17 @@ export function UrlForm({
             className="h-4 w-4 rounded border-line-strong accent-brand"
           />
           Check every outbound link (slower, but catches dead links)
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-ink-soft">
+          <input
+            type="checkbox"
+            checked={ai}
+            onChange={(event) => setAi(event.target.checked)}
+            disabled={pending}
+            className="h-4 w-4 rounded border-line-strong accent-brand"
+          />
+          AI read of your work (sends your page content to Groq)
         </label>
 
         {pending && (

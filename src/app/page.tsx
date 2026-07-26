@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UrlForm } from "@/components/UrlForm";
+import { IntakeTabs } from "@/components/IntakeTabs";
 import { listHistory } from "@/lib/history";
 import { BAND_MARK, bandFor, formatRelative, shortenUrl } from "@/lib/format";
 
@@ -7,32 +7,32 @@ export const dynamic = "force-dynamic";
 
 const CHECKS = [
   {
+    title: "Works for your field",
+    body: "Detects whether you are a developer, designer, writer, nurse, marketer, or tradesperson, and judges the work against that field's expectations — not against software's.",
+  },
+  {
+    title: "Resume analyzer",
+    body: "Upload a CV and get it checked for impact, structure, and the thing you cannot test yourself: whether an applicant tracking system can read it at all.",
+  },
+  {
+    title: "PDF portfolios",
+    body: "Not every portfolio is a website. Upload the deck you actually send and get the same review — plus whether it will survive an employer's mail server.",
+  },
+  {
     title: "Portfolio score",
-    body: "One weighted 0-100 score across six categories, with the arithmetic shown so you can see what moved it.",
+    body: "One weighted 0-100 score, with the arithmetic shown so you can see what moved it.",
   },
   {
-    title: "Sections checker",
-    body: "Looks for the sections a reviewer expects — intro, about, projects, skills, experience, contact — plus bonus ones.",
-  },
-  {
-    title: "Project analyzer",
-    body: "Finds your project cards and grades each on description depth, live demo, source link, screenshots, and stack.",
-  },
-  {
-    title: "Skills detector",
-    body: "Matches your copy against 100+ technologies and reports category coverage and what you never mention.",
+    title: "Work analyzer",
+    body: "Finds your projects, case studies, or campaigns and grades each on depth, evidence, and whether you said what came of it.",
   },
   {
     title: "Link checker",
-    body: "Probes every outbound link for dead ends, and confirms GitHub, LinkedIn, email, and resume are all present.",
+    body: "Probes every outbound link for dead ends, and confirms the proof-of-work links your field expects are present.",
   },
   {
-    title: "Design review",
-    body: "Mobile viewport, heading structure, alt text, contrast, metadata, palette and typeface discipline.",
-  },
-  {
-    title: "Performance report",
-    body: "Real response timing, transfer sizes, request counts, compression and caching — measured, not estimated.",
+    title: "Design & performance",
+    body: "For websites: mobile viewport, heading structure, alt text, contrast, real response timing and transfer sizes.",
   },
   {
     title: "PDF export",
@@ -51,13 +51,13 @@ export default async function HomePage() {
           Find out what a hiring reviewer sees in your portfolio.
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-ink-soft">
-          Paste your portfolio URL. You get a scored report on the sections you are missing, how
-          deep your projects read, which links are dead, and what to fix first — in about five
-          seconds.
+          Paste a URL or upload your resume or portfolio file. You get a scored report on what is
+          missing, how deep the work reads, and what to fix first — judged against your field,
+          whatever that field is.
         </p>
 
         <div className="mt-8 max-w-2xl">
-          <UrlForm autoFocus />
+          <IntakeTabs />
         </div>
 
         {recent.length > 0 && (

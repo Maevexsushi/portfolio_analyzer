@@ -119,7 +119,7 @@ const RULES: Record<string, Rule> = {
     title: "Repair your key links first",
     action: "Your GitHub, LinkedIn, email, or resume link is broken — fix it before anything else.",
   },
-  "links-github": {
+  "links-github-legacy": {
     category: "links",
     severity: "critical",
     impact: 5,
@@ -433,6 +433,23 @@ const RULES: Record<string, Rule> = {
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, important: 1, polish: 2 };
 
+/**
+ * Proof-of-work links are named by the discipline profile, so their check ids are not
+ * knowable here. The check already carries the field-specific label and the reason the
+ * platform matters, so the rule is derived from it rather than looked up.
+ */
+function proofLinkRule(check: Check): Rule | null {
+  if (!check.id.startsWith("links-proof-")) return null;
+  const what = check.label.replace(/ linked$/, "");
+  return {
+    category: "links",
+    severity: check.status === "fail" ? "critical" : "polish",
+    impact: check.status === "fail" ? 6 : 2,
+    title: `Link your ${what.toLowerCase()}`,
+    action: "Put it in the header or footer, where a reviewer looks for it without scrolling.",
+  };
+}
+
 /** Missing sections are described by the sections report, not by a check, so map them here. */
 const SECTION_ADVICE: Record<string, { severity: Severity; impact: number; action: string }> = {
   hero: {
@@ -494,7 +511,7 @@ export function generateSuggestions(reports: Reports): Suggestion[] {
 
   for (const check of allChecks) {
     if (check.status === "pass") continue;
-    const rule = RULES[check.id];
+    const rule = RULES[check.id] ?? proofLinkRule(check);
     if (!rule) continue;
 
     suggestions.push({

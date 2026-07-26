@@ -23,7 +23,12 @@ export async function GET(
   try {
     const pdf = await buildReportPdf(result);
     const stamp = result.analyzedAt.slice(0, 10);
-    const filename = `portfolio-report-${hostnameOf(result.finalUrl).replace(/[^a-z0-9.-]/gi, "-")}-${stamp}.pdf`;
+    const subject =
+      result.kind === "website"
+        ? hostnameOf(result.finalUrl)
+        : result.upload.fileName.replace(/\.[^.]+$/, "");
+    const prefix = result.kind === "resume" ? "resume-report" : "portfolio-report";
+    const filename = `${prefix}-${subject.replace(/[^a-z0-9.-]/gi, "-")}-${stamp}.pdf`;
 
     return new Response(pdf as unknown as BodyInit, {
       headers: {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSections } from "@/lib/analyzer/sections";
 import { analyzeLinks } from "@/lib/analyzer/links";
-import { ctxFrom, shell, statusOf } from "./helpers";
+import { SOFTWARE_PROFILE, ctxFrom, shell, statusOf } from "./helpers";
 
-const NO_NETWORK = { checkLinks: false, maxLinkChecks: 0 };
+const NO_NETWORK = { checkLinks: false, maxLinkChecks: 0, profile: SOFTWARE_PROFILE };
 
 const foundIds = (html: string) =>
   analyzeSections(ctxFrom(html))
@@ -106,13 +106,13 @@ describe("email contact detection", () => {
 });
 
 describe("link classification", () => {
-  it("finds GitHub and LinkedIn profiles", async () => {
+  it("finds the code host and LinkedIn for a software profile", async () => {
     const html = shell(`<h1>Ada</h1>
       <a href="https://github.com/ada">GitHub</a>
       <a href="https://www.linkedin.com/in/ada">LinkedIn</a>`);
     const report = await analyzeLinks(ctxFrom(html), NO_NETWORK);
-    expect(statusOf(report.checks, "links-github")).toBe("pass");
-    expect(statusOf(report.checks, "links-linkedin")).toBe("pass");
+    expect(statusOf(report.checks, "links-proof-github")).toBe("pass");
+    expect(statusOf(report.checks, "links-proof-linkedin")).toBe("pass");
   });
 
   it("recognises a resume link", async () => {
