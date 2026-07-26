@@ -23,19 +23,6 @@ export interface SplitPostingsResult {
   droppedCount: number;
 }
 
-/** Splits pasted text into individual postings on a `---` line, dropping blank chunks. */
-export function splitPostings(text: string): SplitPostingsResult {
-  const all = text
-    .split(POSTING_DELIMITER)
-    .map((chunk) => chunk.trim())
-    .filter((chunk) => chunk.length > 0);
-
-  return {
-    postings: all.slice(0, MAX_POSTINGS),
-    droppedCount: Math.max(0, all.length - MAX_POSTINGS),
-  };
-}
-
 /**
  * A posting chunk that is nothing but a URL, start to finish. This is deliberately
  * strict — the whole trimmed chunk has to be one link with an explicit http(s) scheme,
@@ -46,6 +33,43 @@ const BARE_URL = /^https?:\/\/\S+$/i;
 
 export function isPostingUrl(posting: string): boolean {
   return BARE_URL.test(posting.trim());
+}
+
+/**
+ * Splits pasted text into individual postings on a `---` line, dropping blank chunks.
+ *
+ * One further split happens within each chunk: several links pasted one per line, with
+ * nothing but blank lines between them, is a shape someone reaches for constantly
+ * without bothering with a `---` separator — and forcing them to is exactly the kind of
+ * friction that makes a feature go unused. So a chunk is expanded into one posting per
+ * line only when *every* line in it is independently a bare link; the moment a chunk
+ * has anything else in it (a real posting that happens to mention a URL, say), it is
+ * left whole rather than being torn apart on a guess.
+ */
+export function splitPostings(text: string): SplitPostingsResult {
+  const rawChunks = text
+    .split(POSTING_DELIMITER)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+
+  const all: string[] = [];
+  for (const chunk of rawChunks) {
+    const lines = chunk
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length > 1 && lines.every(isPostingUrl)) {
+      all.push(...lines);
+    } else {
+      all.push(chunk);
+    }
+  }
+
+  return {
+    postings: all.slice(0, MAX_POSTINGS),
+    droppedCount: Math.max(0, all.length - MAX_POSTINGS),
+  };
 }
 
 export interface RankedPosting {

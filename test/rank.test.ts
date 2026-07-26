@@ -50,6 +50,32 @@ describe("splitPostings", () => {
     expect(postings[0]).toBe("Posting 1");
     expect(droppedCount).toBe(3);
   });
+
+  /*
+   * The bug this guards against: two links pasted one per line, with nothing but a
+   * blank line between them and no `---`, used to be read as one merged posting whose
+   * "text" was two URLs glued together — silently losing one of the two postings.
+   */
+  it("auto-splits a chunk of nothing but bare links, one per line, even without a --- separator", () => {
+    const { postings } = splitPostings(
+      "https://acme.example/jobs/1\n\nhttps://acme.example/jobs/2",
+    );
+    expect(postings).toEqual(["https://acme.example/jobs/1", "https://acme.example/jobs/2"]);
+  });
+
+  it("does not auto-split a chunk where only some lines are bare links", () => {
+    const { postings } = splitPostings(
+      "Senior Engineer\nApply at https://acme.example/apply\nRequirements: Python",
+    );
+    expect(postings).toHaveLength(1);
+  });
+
+  it("still applies the 10-posting cap after auto-splitting a list of links", () => {
+    const links = Array.from({ length: 12 }, (_, i) => `https://acme.example/jobs/${i + 1}`);
+    const { postings, droppedCount } = splitPostings(links.join("\n"));
+    expect(postings).toHaveLength(10);
+    expect(droppedCount).toBe(2);
+  });
 });
 
 describe("isPostingUrl", () => {

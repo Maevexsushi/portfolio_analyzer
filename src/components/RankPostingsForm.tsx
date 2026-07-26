@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, Check, ChevronDown, UploadCloud, X } from "lucide-react";
 import { DISCIPLINE_LABELS } from "@/lib/discipline/labels";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import type { JobMatchSkillEvidence } from "@/lib/types";
+import { CheckList } from "@/components/viz";
+import type { JobMatchReport, JobMatchSkillEvidence } from "@/lib/types";
 
 /**
  * One resume against several job postings, ranked by fit.
@@ -31,13 +32,7 @@ interface RankedPosting {
   index: number;
   jobTitle: string | null;
   sourceUrl: string | null;
-  jobMatch: {
-    score: number | null;
-    matchedRequired: JobMatchSkillEvidence[];
-    missingRequired: string[];
-    matchedPreferred: JobMatchSkillEvidence[];
-    missingPreferred: string[];
-  };
+  jobMatch: JobMatchReport;
 }
 
 interface FailedFetch {
@@ -71,10 +66,17 @@ function SkillChips({
       {matched.map((skill) => (
         <li
           key={`m-${skill.name}`}
+          title={
+            skill.declared
+              ? `Listed in your skills section · mentioned ${skill.mentions} time${skill.mentions === 1 ? "" : "s"}`
+              : `Mentioned ${skill.mentions} time${skill.mentions === 1 ? "" : "s"} in your resume`
+          }
           className="flex items-center gap-1 rounded-full border border-good/40 bg-good-soft px-2 py-0.5 text-xs text-ink"
         >
           <Check size={11} strokeWidth={3} aria-hidden className="text-good" />
           {skill.name}
+          {skill.declared && <span className="text-good">*</span>}
+          <span className="text-muted">· {skill.mentions}×</span>
         </li>
       ))}
       {missing.map((name) => (
@@ -95,6 +97,17 @@ function RankedRow({ posting, rank }: { posting: RankedPosting; rank: number }) 
   const { jobMatch } = posting;
   const totalRequired = jobMatch.matchedRequired.length + jobMatch.missingRequired.length;
   const totalPreferred = jobMatch.matchedPreferred.length + jobMatch.missingPreferred.length;
+  const requiredPct = totalRequired > 0 ? Math.round((jobMatch.matchedRequired.length / totalRequired) * 100) : null;
+  const preferredPct =
+    totalPreferred > 0 ? Math.round((jobMatch.matchedPreferred.length / totalPreferred) * 100) : null;
+
+  const coverageParts: string[] = [];
+  if (requiredPct !== null) {
+    coverageParts.push(`${requiredPct}% of required (${jobMatch.matchedRequired.length} of ${totalRequired})`);
+  }
+  if (preferredPct !== null) {
+    coverageParts.push(`${preferredPct}% of preferred (${jobMatch.matchedPreferred.length} of ${totalPreferred})`);
+  }
 
   return (
     <li className="card overflow-hidden">
@@ -133,6 +146,13 @@ function RankedRow({ posting, rank }: { posting: RankedPosting; rank: number }) 
 
       {expanded && (
         <div className="space-y-3 border-t border-line px-4 pb-4 pt-3">
+          {jobMatch.score !== null && (
+            <p className="rounded-lg bg-surface-2/50 px-3 py-2 text-sm text-ink-soft">
+              Required skills carry {Math.round(jobMatch.requiredWeight * 100)}% of this score,
+              preferred the other {Math.round(jobMatch.preferredWeight * 100)}%.
+              {coverageParts.length > 0 && ` You cover ${coverageParts.join(" and ")}.`}
+            </p>
+          )}
           {totalRequired > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
@@ -149,6 +169,14 @@ function RankedRow({ posting, rank }: { posting: RankedPosting; rank: number }) 
               <SkillChips matched={jobMatch.matchedPreferred} missing={jobMatch.missingPreferred} />
             </div>
           )}
+          {(jobMatch.matchedRequired.some((s) => s.declared) ||
+            jobMatch.matchedPreferred.some((s) => s.declared)) && (
+            <p className="text-xs text-muted">
+              * listed in your resume&apos;s skills section; the rest were mentioned elsewhere in
+              the text.
+            </p>
+          )}
+          <CheckList checks={jobMatch.checks} />
         </div>
       )}
     </li>
