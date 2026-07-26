@@ -19,6 +19,11 @@ And it is not a developer tool. The analyzer detects the applicant's field — d
 writing, healthcare, trades, marketing, education, and others — and judges the work
 against that field's expectations. See [Fields](#fields).
 
+A resume gets four things a plain score cannot: an AI rewrite that will not invent a
+number, a check against a specific job posting, a cover letter reviewed or drafted from
+it, and a side-by-side comparison against past versions. See
+[Resume tools](#resume-tools).
+
 ```bash
 npm install
 cp .env.example .env.local   # optional: add a Groq key for the AI review
@@ -44,6 +49,10 @@ npm run dev                  # http://localhost:3000
 | Performance report | [src/lib/analyzer/performance.ts](src/lib/analyzer/performance.ts) |
 | Suggestions generator | [src/lib/analyzer/suggestions.ts](src/lib/analyzer/suggestions.ts) |
 | AI review ("Your edge") | [src/lib/ai/review.ts](src/lib/ai/review.ts), [src/lib/ai/groq.ts](src/lib/ai/groq.ts) |
+| AI resume rewrite | [src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts), [src/components/panels/RewritePanel.tsx](src/components/panels/RewritePanel.tsx) |
+| Job Match page + engine | [src/app/job-match/](src/app/job-match/), [src/lib/jobmatch/](src/lib/jobmatch/) |
+| Cover letter analyzer + AI generator | [src/lib/document/coverletter.ts](src/lib/document/coverletter.ts), [src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts) |
+| Resume comparison | [src/lib/compare.ts](src/lib/compare.ts), [src/app/compare/page.tsx](src/app/compare/page.tsx) |
 | PDF report export | [src/lib/pdf.ts](src/lib/pdf.ts) |
 | Analysis history | [src/lib/history.ts](src/lib/history.ts), [src/app/history/page.tsx](src/app/history/page.tsx) |
 
@@ -81,6 +90,11 @@ the fold and nothing tells you where you are.
 Each tab carries a badge counting the checks inside it that are not passing, so the
 problems are visible before anything is opened — which is the one thing a tab strip
 otherwise costs you against a single scroll.
+
+One exception, on purpose: a resume analyzed from the Job Match page gets exactly two
+tabs, Job Match and Cover Letter, with its own hero score in place of the overall
+resume grade. That reader came to ask one specific question, not for a full resume
+review — see [Resume tools](#resume-tools).
 
 Three properties it has to keep to be better than what it replaced:
 
@@ -201,6 +215,17 @@ requests to your own site.
 - **ATS claims are bounded.** There are hundreds of applicant tracking products and they
   differ. What is asserted is only what follows from the extracted text itself — if the
   text is not there, no parser can read it. Beyond that it does not guess.
+- **Job match is a keyword match, and says so.** It compares named skills only — years
+  of experience, degree requirements, and soft-skill prose are not evaluated. A null
+  score (rather than 0%) means nothing recognisable could be pulled from the pasted
+  text at all, usually a truncated paste.
+- **The cover letter draft's guard is narrower than the rewrite's.** It cross-checks
+  named skills against the resume's own findings; it does not verify free-form claims,
+  because there is no reliable mechanical test for whether an arbitrary sentence is
+  supported by a source document. Read every line before sending it.
+- **PDF accessibility checks stop at tagging and language.** Per-image alt-text
+  detection was built and cut for reliability — see [Resume tools](#resume-tools) — so
+  an untagged file is flagged, but a tagged file's alt text is not separately verified.
 - **No browser.** The analyzer reads the HTML your server sends. A portfolio that renders
   its projects client-side will score 0 on projects — the report says so, and notes that
   crawlers and link previews have the same blind spot.
@@ -266,17 +291,126 @@ findings are saved. A resume is the most personal document most people own, and 
 one would be a liability with no matching benefit. The visible consequence is that an
 upload cannot be re-analyzed from history the way a URL can — you upload it again.
 
+## Resume tools
+
+Four features work only with a resume. Each is opt-in, each is scored separately from
+the resume's own 0–100 grade, and each degrades cleanly to nothing if you skip it —
+none of them can lower the score you get for just uploading a CV.
+
+### AI resume rewrite
+
+Every other check in the tool describes a problem; this is the first that tries to fix
+one, which makes it the first that can do real harm — a resume is a document its author
+gets questioned about, so a confident invention here is worse than any wrong score
+elsewhere. Ask a model to add impact to a bullet with no numbers in it and it tends to
+write "reduced processing time by 40%" purely because that is what a good bullet looks
+like. So the draft rewrites what is already on the page and marks what is missing:
+`"Responsible for managing the rota"` becomes `"Managed the rota for [N staff]"`, with
+the token carrying a prompt for what to go and measure.
+
+That rule is enforced, not just requested. `stripInventedNumbers`
+([src/lib/ai/rewrite.ts](src/lib/ai/rewrite.ts)) collects every figure already in the
+resume and replaces any number in the model's output that is not among them — a second,
+mechanical pass behind the prompt, because prompts are advice and this needs to be a
+guarantee. The same cliché detector the Writing tab uses also runs over the draft, since
+a model asked to write a summary from nothing has been caught reaching for exactly the
+stock phrases this tool tells people to delete. Presented as a diff, never a finished
+document: a polished replacement invites you to send it unread, and a before/after with
+a reason on each line is the only safe relationship to have with a machine rewriting
+claims about your career.
+
+### Job match
+
+Paste a job posting on the Job Match page (`/job-match`, linked in the nav — a resume
+uploaded there gets a focused report with just the Job Match and Cover Letter tabs,
+not the full resume breakdown) and get back the same thing every ATS keyword checker
+does under the hood — except it says so.
+[src/lib/jobmatch/](src/lib/jobmatch/) splits the posting into required and preferred
+zones by heading (an undifferentiated posting is treated as entirely required — a
+poster who cared enough to separate "nice to have" would have said so), then matches
+both zones against the same skill vocabulary the resume was scored with. Pure text
+comparison: no AI, no network call, nothing that can hallucinate a match that is not
+there.
+
+A matched skill is not just a checkmark — it carries the resume's own evidence for it
+(how many times it appears, and whether it was actually listed in a skills section or
+only mentioned in prose), and the score comes with its own arithmetic shown: required
+coverage carries 82% of it, preferred the other 18%, both stated as plain percentages
+rather than a number you have to trust. Scored and displayed separately from the
+resume's own breakdown, because a resume that is a perfect fit for one posting and a
+poor fit for another has not changed — the fit changed, and folding that into the
+overall score would move a fixed document's score every time someone tried a different
+job.
+
+**What it does not evaluate:** years-of-experience requirements, degree requirements, or
+soft-skill prose ("excellent communicator") — nothing not expressible as a named skill
+in the shared vocabulary. The score is a floor on fit, not a verdict on it.
+
+### Cover letter
+
+The same page reviews a cover letter you already wrote (length, a greeting addressed to
+a person rather than "To Whom It May Concern," stock phrases, whether it actually names
+the role and company it claims to be for) or drafts one from your resume
+([src/lib/document/coverletter.ts](src/lib/document/coverletter.ts),
+[src/lib/ai/coverletter.ts](src/lib/ai/coverletter.ts)).
+
+The draft's fabrication guard is deliberately narrower than the resume rewrite's, and
+that is a considered trade-off, not a shortcut. A number is a small, mechanically
+comparable token — a digit in the output either is or is not in the source. A cover
+letter's risk is a free-form *claim* ("led a five-person team"), and there is no
+reliable mechanical test for whether an arbitrary sentence is supported by a source
+document. What ships instead: every named skill or tool the draft uses is checked
+against the resume's own skill findings, and anything the letter mentions that the
+resume never evidenced is surfaced as unverified. That catches the single most common
+and most damaging failure — the letter name-drops a technology the applicant has never
+used — without pretending to catch everything, and the panel says so plainly.
+
+### Accessible PDF checks
+
+Folded into the existing Machine Readability (resume) and Presentation (portfolio file)
+tabs rather than a tab of their own: whether the uploaded PDF declares itself tagged
+(`MarkInfo.Marked`) and whether it names a document language (`/Lang`), both read
+straight off the PDF's own catalog via `pdf.js`
+([src/lib/intake/pdf.ts](src/lib/intake/pdf.ts)). An untagged PDF gets nothing read out
+of it by a screen reader regardless of anything else on the page, which is why this
+matters for a document nobody proofreads with assistive technology switched on.
+
+A third signal — whether images carry alt text — was built and cut. Reading it
+correctly means walking a structure tree cross-linked through a parent tree and
+marked-content IDs in the page's content stream; real authoring tools wire this
+correctly, but it is easy to get subtly wrong by hand, including in this project's own
+test fixtures during development. An untagged file already fails the check that matters
+most, alt text included, so the two signals that shipped are the ones that are both
+load-bearing and reliably readable.
+
+### Comparing versions
+
+History gains a checkbox per stored resume and a plain form that GETs the selected ids
+to `/compare` — no persistent "variant" data model, because a re-run of the same file
+and two differently-named uploads weeks apart are equally comparable; a variant is just
+whichever reports you pick. [src/lib/compare.ts](src/lib/compare.ts) builds the diff
+around disagreement only: a score category both reports tie on, a skill both share or
+neither has, a suggestion open in every report compared — all of that is signal-free and
+left out. What is shown is which report wins each category that actually differs, which
+skills only some resumes evidence, and which suggestions are open in one report and
+fixed in another, keyed off the same suggestion id the report tab already uses — so a
+check that reads "fixed" here was actually resolved, not just reworded.
+
 ## API
 
 ```
 POST   /api/analyze       { url, checkLinks?, ai?, save?: boolean } -> { result, trend }
-POST   /api/analyze/file  multipart: file, documentKind?, discipline?, ai?, checkLinks?, save?
+POST   /api/analyze/file  multipart: file, documentKind?, discipline?, ai?, checkLinks?,
+                          rewrite?, jobDescription?, coverLetterText?, coverLetterDraft?,
+                          focus? ("full" | "jobmatch"), save?
                           -> { result, trend, detectedKind, classificationConfidence }
 GET    /api/history       -> { entries }
 DELETE /api/history       -> clears all
 GET    /api/history/:id   -> { result, trend }
 DELETE /api/history/:id   -> deletes one
-GET    /api/report/:id    -> application/pdf
+GET    /api/report/:id    -> application/pdf (the full report)
+GET    /api/rewrite/:id   -> application/pdf (the improved draft, if one was requested)
+GET    /api/cover-letter/:id -> application/pdf (the drafted cover letter, if one was requested)
 ```
 
 Analysis fetches user-supplied URLs, so `fetchPage` refuses non-HTTP schemes, resolves each
@@ -339,6 +473,24 @@ failing test rather than as advice the user has to disbelieve. Cases currently p
   general; a repeated word does not outweigh a field's real vocabulary; and the same page
   scores *higher* as a designer than as a developer, because Behance is proof of work and
   a missing GitHub is not a flaw.
+- **Job match** — required and preferred zones stay separate under any heading style; a
+  skill genuinely absent from the resume is named as missing, not papered over by a
+  percentage; a null score when nothing in the posting is recognisable; required
+  coverage outweighs preferred in the score; and a matched skill carries the resume's
+  own mention count and declared/prose distinction.
+- **Cover letter** — a capitalised "Dear Jane," greeting is recognised (a regex missing
+  its case-insensitive flag once meant it silently never was); stock phrases, length,
+  and role/company mentions are checked independently; and the draft's guard flags a
+  skill it named that the resume never evidenced while leaving a genuinely-evidenced one
+  alone.
+- **PDF accessibility** — a plain pdf-lib export reads as untagged with no declared
+  language (the honest default for most real-world resumes); a hand-built tagged PDF
+  with a declared `/Lang`, built against the real `pdf.js` APIs, reads as tagged; a
+  `.docx` has no such property to check at all.
+- **Comparison** — chronological ordering regardless of selection order; a category
+  both reports tie on is dropped from the diff; a suggestion fixed in the newer report
+  reads as fixed there and open in the older one; and a shared top score never gets
+  falsely declared a winner.
 
 Document fixtures are synthesised at test time — real PDFs via pdf-lib, real .docx via a
 small store-only ZIP writer in [test/doc-helpers.ts](test/doc-helpers.ts). A committed
