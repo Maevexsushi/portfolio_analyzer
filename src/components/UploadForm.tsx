@@ -283,9 +283,13 @@ export function UploadForm({
             onChange={(event) => setJobDescription(event.target.value)}
             disabled={pending}
             rows={4}
-            placeholder="Paste the full job posting text here to check how your resume matches it — required and preferred skills, matched and missing."
+            placeholder="Paste the full job posting text here — or just its link — to check how your resume matches it — required and preferred skills, matched and missing."
             className="w-full rounded-lg border-2 border-transparent bg-surface-2 px-3 py-2.5 text-sm placeholder:text-muted focus:border-brand focus:bg-surface focus:outline-none"
           />
+          <p className="mt-1 text-xs text-muted">
+            A link on its own is fetched fresh when you submit; anything else is matched as
+            pasted text.
+          </p>
           <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
             <input
               type="checkbox"

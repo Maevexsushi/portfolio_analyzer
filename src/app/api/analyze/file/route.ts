@@ -3,6 +3,9 @@ import { ExtractError, analyzeUpload } from "@/lib/document";
 import { MAX_UPLOAD_BYTES } from "@/lib/intake";
 import { DISCIPLINE_ORDER } from "@/lib/discipline/profiles";
 import { getTrend, saveAnalysis, trendKeyFor } from "@/lib/history";
+import { FetchError, fetchPage } from "@/lib/fetcher";
+import { buildContext } from "@/lib/analyzer/context";
+import { isPostingUrl } from "@/lib/jobmatch/rank";
 import type { DisciplineKey } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -50,6 +53,28 @@ function asPastedText(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed.slice(0, MAX_PASTED_TEXT) : null;
 }
 
+/**
+ * A job posting is usually pasted as text, but a reader with the posting open in
+ * another tab shouldn't have to copy the whole thing out first. When the field is
+ * nothing but a link — the same strict, whole-string check Rank Postings uses — it is
+ * fetched fresh through the SSRF-guarded fetcher rather than matched against the raw
+ * URL text. A link that fails to fetch is reported as an error rather than silently
+ * matched against nothing, since unlike Rank Postings this is the only posting given.
+ */
+async function resolveJobDescription(
+  raw: string | null,
+): Promise<{ text: string | null } | { error: string }> {
+  if (!raw || !isPostingUrl(raw)) return { text: raw };
+  try {
+    const fetched = await fetchPage(raw);
+    const context = buildContext(fetched);
+    return { text: context.text.trim().slice(0, MAX_PASTED_TEXT) || null };
+  } catch (error) {
+    const message = error instanceof FetchError ? error.message : "Could not fetch that page.";
+    return { error: `Could not read that job posting link: ${message}` };
+  }
+}
+
 export async function POST(request: Request) {
   let form: FormData;
   try {
@@ -79,6 +104,11 @@ export async function POST(request: Request) {
   const documentKind =
     rawKind === "resume" || rawKind === "document" ? (rawKind as "resume" | "document") : null;
 
+  const resolvedJobDescription = await resolveJobDescription(asPastedText(form.get("jobDescription")));
+  if ("error" in resolvedJobDescription) {
+    return NextResponse.json({ error: resolvedJobDescription.error }, { status: 502 });
+  }
+
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const analysis = await analyzeUpload(
@@ -91,7 +121,7 @@ export async function POST(request: Request) {
         checkLinks: form.get("checkLinks") === "true",
         // Opt-in: the draft is the author's own content and is stored with the report.
         rewrite: form.get("rewrite") === "true" && documentKind === "resume",
-        jobDescription: asPastedText(form.get("jobDescription")),
+        jobDescription: resolvedJobDescription.text,
         coverLetterText: asPastedText(form.get("coverLetterText")),
         coverLetterDraft: form.get("coverLetterDraft") === "true" && documentKind === "resume",
         skillGapNotes: form.get("skillGapNotes") === "true" && documentKind === "resume",
