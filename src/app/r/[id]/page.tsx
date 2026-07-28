@@ -33,7 +33,7 @@ import { SkillsPanel } from "@/components/panels/SkillsPanel";
 import { SuggestionsPanel } from "@/components/panels/SuggestionsPanel";
 import { rewriteToText } from "@/lib/ai/rewrite";
 import { profileFor } from "@/lib/discipline/profiles";
-import { getAnalysis, getTrend, trendKeyFor } from "@/lib/history";
+import { getAnalysis, getOwnerToken, getTrend, trendKeyFor } from "@/lib/history";
 import { shortenUrl } from "@/lib/format";
 import type { AnyResult, Check, CheckStatus } from "@/lib/types";
 
@@ -332,7 +332,11 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const result = await getAnalysis(id);
   if (!result) notFound();
 
-  const trend = await getTrend(trendKeyFor(result), result.kind).catch(() => []);
+  // Scoped to whoever this report actually belongs to, not whoever is viewing it —
+  // the report itself stays sharable by id, but its trend line is still that
+  // owner's own history, not a stranger's who happened to open the link.
+  const owner = await getOwnerToken(id);
+  const trend = await getTrend(trendKeyFor(result), result.kind, owner).catch(() => []);
   const heading = headingFor(result);
 
   return (

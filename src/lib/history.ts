@@ -14,6 +14,13 @@ import type { AnyResult, HistoryEntry } from "./types";
  * The Supabase client is REST-based rather than a pooled Postgres connection, so
  * creating one per call (cached at module scope) is the right shape here — there is
  * no connection to exhaust across serverless invocations.
+ *
+ * Every list/delete-all operation is scoped to an anonymous owner token (see
+ * src/lib/ownerToken.ts) so one visitor never sees another's history. A single
+ * report — getAnalysis by id, and everything downstream of it (the report page,
+ * PDF export, trend for that one report) — stays unscoped on purpose: an id is
+ * meant to be sharable by whoever holds the link, the same trust model a "anyone
+ * with the link" share uses.
  */
 
 const MAX_ENTRIES = 50;
@@ -79,18 +86,19 @@ function rowToEntry(row: AnalysisRow): HistoryEntry {
   };
 }
 
-/** Deletes everything beyond the most recent MAX_ENTRIES rows, oldest first. */
-async function trim(sb: SupabaseClient): Promise<void> {
+/** Deletes one owner's rows beyond their most recent MAX_ENTRIES, oldest first. */
+async function trim(sb: SupabaseClient, ownerToken: string): Promise<void> {
   const { data: overflow, error } = await sb
     .from(TABLE)
     .select("id")
+    .eq("owner_token", ownerToken)
     .order("created_at", { ascending: false })
     .range(MAX_ENTRIES, MAX_ENTRIES + 999);
   if (error || !overflow || overflow.length === 0) return;
   await sb.from(TABLE).delete().in("id", overflow.map((row) => (row as { id: string }).id));
 }
 
-export async function saveAnalysis(result: AnyResult): Promise<void> {
+export async function saveAnalysis(result: AnyResult, ownerToken: string): Promise<void> {
   const sb = client();
   const identity = identityOf(result);
   const { error } = await sb.from(TABLE).insert({
@@ -103,21 +111,26 @@ export async function saveAnalysis(result: AnyResult): Promise<void> {
     overall_score: result.overallScore,
     grade: result.grade,
     data: result,
+    owner_token: ownerToken,
   });
   if (error) throw new Error(error.message);
-  await trim(sb);
+  await trim(sb, ownerToken);
 }
 
-export async function listHistory(): Promise<HistoryEntry[]> {
+/** A visitor with no owner cookie yet has, by definition, an empty history. */
+export async function listHistory(ownerToken: string | null): Promise<HistoryEntry[]> {
+  if (!ownerToken) return [];
   const { data, error } = await client()
     .from(TABLE)
     .select("id, kind, url, final_url, title, analyzed_at, overall_score, grade")
+    .eq("owner_token", ownerToken)
     .order("created_at", { ascending: false })
     .limit(MAX_ENTRIES);
   if (error) throw new Error(error.message);
   return (data as AnalysisRow[] | null ?? []).map(rowToEntry);
 }
 
+/** Unscoped by owner: a report's id is meant to be sharable by whoever holds it. */
 export async function getAnalysis(id: string): Promise<AnyResult | null> {
   const { data, error } = await client()
     .from(TABLE)
@@ -128,24 +141,36 @@ export async function getAnalysis(id: string): Promise<AnyResult | null> {
   return (data as { data: AnyResult } | null)?.data ?? null;
 }
 
+/** Whoever's history a stored report belongs to, so its own trend line stays scoped
+ * to that owner regardless of who is viewing the shared report link. */
+export async function getOwnerToken(id: string): Promise<string | null> {
+  const { data, error } = await client().from(TABLE).select("owner_token").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { owner_token: string | null } | null)?.owner_token ?? null;
+}
+
 /**
  * All past scores for the same subject, oldest first — powers the trend line.
  *
  * Matching is scoped to one kind so an uploaded resume named "portfolio.pdf" cannot
- * land on the trend for a website at portfolio.pdf. The whole kind is fetched and
- * filtered in code rather than pushed into the query as an `or=` filter string,
- * since a URL can contain characters (commas, parentheses) that would need careful
- * escaping to be safe inside PostgREST's filter syntax — the table is capped at 50
- * rows total, so fetching one kind's worth to filter in memory costs nothing.
+ * land on the trend for a website at portfolio.pdf, and to one owner so a stranger's
+ * separately-run "resume.pdf" cannot land on yours. The whole kind+owner is fetched
+ * and filtered by subject in code rather than pushed into the query as an `or=`
+ * filter string, since a URL can contain characters (commas, parentheses) that would
+ * need careful escaping to be safe inside PostgREST's filter syntax — one owner's
+ * rows are capped at MAX_ENTRIES, so filtering in memory costs nothing.
  */
 export async function getTrend(
   subject: string,
-  kind: AnyResult["kind"] = "website",
+  kind: AnyResult["kind"],
+  ownerToken: string | null,
 ): Promise<{ analyzedAt: string; overallScore: number; id: string }[]> {
+  if (!ownerToken) return [];
   const { data, error } = await client()
     .from(TABLE)
     .select("id, url, final_url, analyzed_at, overall_score")
     .eq("kind", kind)
+    .eq("owner_token", ownerToken)
     .order("analyzed_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data as AnalysisRow[] | null ?? [])
@@ -158,13 +183,18 @@ export function trendKeyFor(result: AnyResult): string {
   return identityOf(result).finalUrl;
 }
 
-export async function deleteAnalysis(id: string): Promise<boolean> {
-  const { data, error } = await client().from(TABLE).delete().eq("id", id).select("id");
+export async function deleteAnalysis(id: string, ownerToken: string): Promise<boolean> {
+  const { data, error } = await client()
+    .from(TABLE)
+    .delete()
+    .eq("id", id)
+    .eq("owner_token", ownerToken)
+    .select("id");
   if (error) throw new Error(error.message);
   return (data?.length ?? 0) > 0;
 }
 
-export async function clearHistory(): Promise<void> {
-  const { error } = await client().from(TABLE).delete().neq("id", "");
+export async function clearHistory(ownerToken: string): Promise<void> {
+  const { error } = await client().from(TABLE).delete().eq("owner_token", ownerToken);
   if (error) throw new Error(error.message);
 }

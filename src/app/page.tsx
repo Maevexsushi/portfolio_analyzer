@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { IntakeTabs } from "@/components/IntakeTabs";
 import { listHistory } from "@/lib/history";
+import { ownerTokenForRead } from "@/lib/ownerToken";
 import { BAND_MARK, bandFor, formatRelative, shortenUrl } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -126,7 +127,7 @@ const STEPS = [
 ];
 
 export default async function HomePage() {
-  const history = await listHistory().catch(() => []);
+  const history = await listHistory(await ownerTokenForRead()).catch(() => []);
   const recent = history.slice(0, 4);
 
   return (

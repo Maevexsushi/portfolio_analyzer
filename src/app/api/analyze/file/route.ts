@@ -6,6 +6,7 @@ import { getTrend, saveAnalysis, trendKeyFor } from "@/lib/history";
 import { FetchError, fetchPage } from "@/lib/fetcher";
 import { buildContext } from "@/lib/analyzer/context";
 import { isPostingUrl } from "@/lib/jobmatch/rank";
+import { ownerTokenForRead, ownerTokenForWrite } from "@/lib/ownerToken";
 import type { DisciplineKey } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -129,14 +130,23 @@ export async function POST(request: Request) {
       },
     );
 
-    if (form.get("save") !== "false") {
+    const willSave = form.get("save") !== "false";
+    // Only mint a fresh owner identity when there is actually something to tag with
+    // it; a caller that opted out of saving gets a read-only cookie check instead.
+    let ownerToken: string | null;
+    if (willSave) {
+      ownerToken = await ownerTokenForWrite();
       // A failed history write must not fail the analysis the user waited for.
-      await saveAnalysis(analysis.result).catch(() => undefined);
+      await saveAnalysis(analysis.result, ownerToken).catch(() => undefined);
+    } else {
+      ownerToken = await ownerTokenForRead();
     }
 
-    const trend = await getTrend(trendKeyFor(analysis.result), analysis.result.kind).catch(
-      () => [],
-    );
+    const trend = await getTrend(
+      trendKeyFor(analysis.result),
+      analysis.result.kind,
+      ownerToken,
+    ).catch(() => []);
 
     return NextResponse.json({
       result: analysis.result,

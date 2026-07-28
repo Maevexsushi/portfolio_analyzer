@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClearHistoryButton, DeleteEntryButton } from "@/components/HistoryActions";
 import { listHistory } from "@/lib/history";
+import { ownerTokenForRead } from "@/lib/ownerToken";
 import type { HistoryEntry } from "@/lib/types";
 import { BAND_MARK, bandFor, formatDateTime, formatRelative, shortenUrl } from "@/lib/format";
 
@@ -17,7 +18,7 @@ const KIND_LABEL: Record<HistoryEntry["kind"], string> = {
 };
 
 export default async function HistoryPage() {
-  const entries: HistoryEntry[] = await listHistory().catch(() => []);
+  const entries: HistoryEntry[] = await listHistory(await ownerTokenForRead()).catch(() => []);
   const resumeCount = entries.filter((entry) => entry.kind === "resume").length;
 
   /*

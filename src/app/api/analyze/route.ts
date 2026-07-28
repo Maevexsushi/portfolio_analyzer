@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FetchError, analyzePortfolio } from "@/lib/analyzer";
 import { getTrend, saveAnalysis } from "@/lib/history";
+import { ownerTokenForRead, ownerTokenForWrite } from "@/lib/ownerToken";
 
 export const runtime = "nodejs";
 /** Analysis always hits the network; never let a response be cached. */
@@ -51,12 +52,18 @@ export async function POST(request: Request) {
       aiReview: ai !== false,
     });
 
+    // Only mint a fresh owner identity when there is actually something to tag with
+    // it; a caller that opted out of saving gets a read-only cookie check instead.
+    let ownerToken: string | null;
     if (save !== false) {
+      ownerToken = await ownerTokenForWrite();
       // A failed history write must not fail the analysis the user waited for.
-      await saveAnalysis(result).catch(() => undefined);
+      await saveAnalysis(result, ownerToken).catch(() => undefined);
+    } else {
+      ownerToken = await ownerTokenForRead();
     }
 
-    const trend = await getTrend(result.finalUrl, "website").catch(() => []);
+    const trend = await getTrend(result.finalUrl, "website", ownerToken).catch(() => []);
     return NextResponse.json({ result, trend });
   } catch (error) {
     if (error instanceof FetchError) {
