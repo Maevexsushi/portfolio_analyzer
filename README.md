@@ -556,8 +556,19 @@ across redirects), and caps the response body.
 
 ## Storage
 
-Analyses are written to `data/history.json` (gitignored), most recent first, capped at 50.
-Writes are serialised in-process and land via temp-file rename. Delete the file to reset.
+Analyses are stored in a Supabase (Postgres) table, most recent first, capped at 50 —
+see [supabase/migrations/](supabase/migrations/) for the schema and
+[src/lib/history.ts](src/lib/history.ts) for the reads and writes. This used to be a
+local JSON file, which worked for `next dev` but silently failed once deployed to
+Vercel: its serverless functions run on a read-only filesystem, so every write threw,
+was swallowed on purpose (a storage hiccup must never fail the analysis the user just
+waited for), and every report vanished the instant you navigated away from it — the
+history list, Compare, and the PDF-download routes all sat on the same store, so they
+were silently broken too. `SUPABASE_PROJECT_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required
+(see `.env.example`); run the migration against your Supabase project before first
+use, in both your local `.env.local` and the Vercel project's environment variables.
+The service-role key bypasses row-level security and is read server-side only —
+`history.ts` is never imported by a `"use client"` file.
 
 ## Tests
 
@@ -675,10 +686,13 @@ check both ends of the scale after changing anything in the scoring.
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript 5 · Tailwind CSS 4 · Cheerio · pdf-lib ·
-unpdf (PDF text) · mammoth (DOCX) · tesseract.js (OCR).
+unpdf (PDF text) · mammoth (DOCX) · tesseract.js (OCR) · Supabase (history storage).
 
-No database, no auth. One optional API key (Groq), used through `fetch` rather than an SDK;
-without it every other feature works unchanged.
+No auth — single-user, no login. One required datastore (Supabase, for history — see
+Storage above) and one optional API key (Groq, used through `fetch` rather than an
+SDK); without the Groq key every feature works unchanged, it just skips the AI-backed
+ones (the "Your edge" review, skill-gap notes, cover letter draft/review, company
+briefing).
 
 `tesseract.js` and `unpdf` are listed in `serverExternalPackages`. Both resolve a worker
 script from their own `__dirname` at runtime, and once bundled that path becomes a build
