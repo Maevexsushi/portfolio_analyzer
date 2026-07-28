@@ -5,7 +5,8 @@ build/
 next-env.d.ts
 *.tsbuildinfo
 
-# local analysis history store
+# Leftover from the local JSON history store this app used before Supabase; no code
+# reads or writes here anymore, kept ignored so a stale local copy is never committed.
 data/
 
 # OCR language models, downloaded on first use (~5 MB each)

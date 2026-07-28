@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
     "cheerio": "^1.2.0",
     "lucide-react": "^1.27.0",
     "mammoth": "^1.12.0",
