@@ -95,9 +95,12 @@ export function UploadForm({
   const [checkLinks, setCheckLinks] = useState(false);
   const [rewrite, setRewrite] = useState(documentKind === "resume" && !jobMatchMode);
   const [jobDescription, setJobDescription] = useState("");
-  const [skillGapNotes, setSkillGapNotes] = useState(false);
+  // Both default on only for Job Match: elsewhere (the plain Resume tab) these
+  // checkboxes aren't even rendered, so a bare `true` here would silently turn on
+  // an AI call the reader never had a chance to see, let alone opt into.
+  const [skillGapNotes, setSkillGapNotes] = useState(jobMatchMode);
   const [coverLetterText, setCoverLetterText] = useState("");
-  const [coverLetterDraft, setCoverLetterDraft] = useState(false);
+  const [coverLetterDraft, setCoverLetterDraft] = useState(jobMatchMode);
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
