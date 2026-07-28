@@ -565,10 +565,23 @@ was swallowed on purpose (a storage hiccup must never fail the analysis the user
 waited for), and every report vanished the instant you navigated away from it — the
 history list, Compare, and the PDF-download routes all sat on the same store, so they
 were silently broken too. `SUPABASE_PROJECT_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required
-(see `.env.example`); run the migration against your Supabase project before first
+(see `.env.example`); run the migrations against your Supabase project before first
 use, in both your local `.env.local` and the Vercel project's environment variables.
 The service-role key bypasses row-level security and is read server-side only —
 `history.ts` is never imported by a `"use client"` file.
+
+There is no login, but there is isolation: the first time a visitor analyzes
+something, a random id is set in a long-lived cookie
+([src/lib/ownerToken.ts](src/lib/ownerToken.ts)), and every analysis they save is
+tagged with it. The history list, the homepage's recent-analyses list, and
+delete/clear-all are all scoped to that cookie, so one visitor never sees or
+deletes another's history — with a fixed persistent store, that scoping is what
+stops what used to be a single, unintentionally shared list. A single report's own
+`/r/[id]` link, and its PDF/rewrite/cover-letter downloads, stay unscoped by design:
+an id is meant to be sharable by whoever holds the link, same as a "anyone with the
+link" share. **What this does not give you:** an account. Clearing cookies or
+opening the site in another browser gets a fresh identity with no history in it —
+there is nothing to sign into to get the old one back.
 
 ## Tests
 
